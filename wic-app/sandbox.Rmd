@@ -18,7 +18,6 @@ E.g. not "data" but "fe_data".
 ```{r}
 # loading packages I like
 library(tidyverse)
-library(readxl)
 library(ggthemes)
 
 # importing impact factor data

@@ -8,29 +8,33 @@
 # load packages
 library(shiny)
 library(tidyverse)
+library(ggthemes)
 library(DT)
 
-# load data
-no_records <- 2
+# importing impact factor data
+fe_no_records <- 2  #this is just a limiter during app development
 impact_factors <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
-    ) %>%
+  ) %>%
   as.data.frame()
-mat_disp_combos <- 
+
+# creating a blank small set of material-disposition combinations to work with
+# during testing
+fe_mat_disp_combos <- 
   impact_factors %>%
   filter(LCstage == "endOfLife") %>% 
-  sample_n(no_records) %>%
+  sample_n(fe_no_records) %>%
   unique() %>%
   select(material, disposition, impliedMiles) %>%
   mutate(
-    baseline=round(runif(n=no_records, min=0, max=10),1),
-    baselineMiles=impliedMiles,
-    alternative=round(runif(n=no_records, min=0, max=10),1),
-    alternativeMiles=impliedMiles
+    baseline_tons=round(runif(n=fe_no_records, min=0, max=10),1),
+    baseline_miles=impliedMiles,
+    alternative_tons=round(runif(n=fe_no_records, min=0, max=10),1),
+    alternative_miles=impliedMiles
   ) %>%
   select(-impliedMiles) %>%
-  as.data.frame()
+  as.data.frame() 
 
 # user interface
 ui <- 
@@ -38,34 +42,30 @@ ui <-
     tabsetPanel(
       tabPanel(title="something"),
       tabPanel(
-        title="enter your own",
+        title="free entry",
         sidebarLayout(
           sidebarPanel(
             selectInput(
-              inputId="eyoImpactCategoryChoice",
+              inputId="fe_ImpactCategoryChoice",
               label="impact category",
               choices = unique(impact_factors$impactCategory),
-              selected="Smog"
+              selected="Energy demand"
             ),
             h2("the original table"),
             tableOutput("x0"),
             h2("An editable table"),
             DTOutput("x1"),
             h2("Edits preserved and transformed"),
-            DTOutput("x2"),
-            h2("tons"),
-            tableOutput("x2a"),
-            h2("mileage"),
-            tableOutput("x2b"),
-            h2("combined"),
-            tableOutput("x2c"),
+            tableOutput("x2"),
+            h3("Edited data with production tons"),
+            tableOutput("x3"),
+            h3("Edited data with impacts"),
+            tableOutput("x4"),
             width=6
           ),
           mainPanel(
             h2("Edits used in graphic output"),
-            plotOutput(outputId="x3"),
             h2("table with impacts"),
-            tableOutput("x4"),
             width=6
           )
         )
@@ -78,12 +78,16 @@ ui <-
 # server
 server <- function(input, output) {
   
-  output$x0 <- renderTable(mat_disp_combos)
+  output$x0 <- renderTable(fe_mat_disp_combos)
   
-  output$x1 <- renderDT(mat_disp_combos, 
-                        selection = 'none',
-                        editable = TRUE
-  )
+  output$x1 <- 
+    renderDT(
+      fe_mat_disp_combos,
+      filter = "top",
+      selection = 'none',
+      rownames = FALSE,
+      editable = TRUE
+    )
   
   proxy <- dataTableProxy('x1')
   
@@ -91,80 +95,71 @@ server <- function(input, output) {
     info <- input$x1_cell_edit
     str(info)
     i <- info$row
-    j <- info$col
+    j <- info$col + 1 #offset because row names are not being used
     v <- info$value
     
     #limits editing to columns specified by j
     if ( j >=3 & j <= 6) {
-      mat_disp_combos[i, j] <<- DT::coerceValue(v, mat_disp_combos[i, j])
-      replaceData(proxy, mat_disp_combos, resetPaging = FALSE)  # important
+      fe_mat_disp_combos[i, j] <<- DT::coerceValue(v, fe_mat_disp_combos[i, j])
+      replaceData(
+        proxy, fe_mat_disp_combos, resetPaging = FALSE, rownames=FALSE
+      )  # important
     } else {}
-    mat_disp_combos
+    fe_mat_disp_combos
     
   })
   
-  y <- reactive({
+  fe_mat_disp_combos_2 <- reactive({
     input$x1_cell_edit
     # here is where the joins and so on would go in
-    mat_disp_combos %>% mutate(baseline=baseline*10) %>%
-      pivot_longer(
-        baseline:alternativeMiles,
-        names_to="tonnageType",
-        values_to="tons"
+    # flipping so the form is 
+    # scenario - material - disposition - tons - miles
+      pivot_longer(fe_mat_disp_combos,baseline_tons:alternative_miles, 
+                   names_to=c("scenario","thing"), names_sep="_",  
+                   values_to=c("quant")) %>% 
+      pivot_wider(values_from = "quant", names_from = "thing") %>%
+      arrange(desc(scenario), material, disposition) %>%
+      select(scenario, material, disposition, tons, miles)
+  })
+  
+  output$x2 <- renderTable(fe_mat_disp_combos_2())
+  
+  #so, mat_disp_combos_2 has the end-of-life information I need.
+  #but production information isn't included.
+  #so all I really need to do is double it and change the disposition to production.
+  fe_mat_disp_combos_3 <-
+    reactive({
+      bind_rows(
+        fe_mat_disp_combos_2(),
+        mutate(
+          fe_mat_disp_combos_2(),
+          disposition="production",
+          miles=0
+        )
+      ) %>%
+      arrange(desc(scenario), material, disposition)
+    })  
+  
+  output$x3 <- renderTable(fe_mat_disp_combos_3())
+  
+  # merging with impact factors
+  fe_combos_with_impacts_detailed <-
+    reactive({
+      left_join(
+        fe_mat_disp_combos_3(),
+        impact_factors,
+        by = c("material", "disposition")
+      ) %>%
+      mutate(miles=ifelse(LCstage!="endOfLifeTransport",impliedMiles,miles)) %>%
+      arrange(impactCategory, material, scenario, LCstage, disposition) %>%
+      mutate(
+        impact=tons*impactFactor*miles/impliedMiles
       )
-  })
+    })
   
-  ya <- reactive({
-    filter(
-      y(),
-      tonnageType=="baseline" | tonnageType=="alternative"
-    ) %>%
-      mutate(LCstage="endOfLife")
-  })
+  output$x4 <- renderTable(fe_combos_with_impacts_detailed())
   
-  yb <- reactive({
-    filter(
-      y(),
-      tonnageType=="baselineMiles" | tonnageType=="alternativeMiles"
-    ) %>%
-      mutate(LCstage="endOfLifeTransport")
-  })
-  
-  yc <- reactive({
-    bind_rows(ya(),yb()) %>%
-      arrange(material, LCstage, disposition)
-  })
-  
-  output$x2 <- renderDT(y(),
-                        selection = 'none')
-  
-  output$x2a <- renderTable(ya())
-  output$x2b <- renderTable(yb())
-  output$x2c <- renderTable(yc())
-  
-  
-  output$x3 <- renderPlot({
-    ggplot()+
-      geom_point(
-        data=y(),
-        aes(x=material, y=tons, fill=tonnageType, color=tonnageType),
-        size=5
-      )
-  })
-  
-  z <- reactive({
-    left_join(
-      y(),
-      impact_factors,
-      by=c("material", "disposition")
-    ) %>%
-      mutate(impact=tons*impactFactor)
-  })
-  
-  output$x4 <- renderTable(
-    z() %>% filter(impactCategory==input$eyoImpactCategoryChoice)
-  )
-}
+  } # close server
 
 # Run the application 
 shinyApp(ui = ui, server = server)
