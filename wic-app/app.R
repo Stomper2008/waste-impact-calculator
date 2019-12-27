@@ -1,40 +1,9 @@
-# file app2.R
-# rough draft of waste impact calculator app
+# file app.R
+# working draft of waste impact calculator app
 
-# it's going well so far.ay of processing this.
-# maybe that's for when I return to it.
-
-# i need to think about the most efficient w
-# let's do this systematically
-
-# to make the final graph, i need this data frame:
-# impact by impactCategory - scenario - LCstage 
-
-# that comes from summing up this data frame:
-# impact by impactCategory - scenario - material - LCstage
-
-# that in turn comes from a combination of two subsets
-# material impact by impactCategory - scenario - material - LCstage
-# [using tons]
-# and
-# transport impact by impactCategory - scenario - material
-# [using mileage and tons with LCstage set to "endOfLifeTransport"]
-
-# so really when i do the pivot, i need to create a tons
-# variable and a mileage variable.
-
-
-# here is the code to pivot it
-# junk <- 
-# pivot_longer(mat_disp_combos,baseline_tons:alternative_miles, 
-# names_to=c("scenario","thing"), names_sep="_",  
-# values_to=c("quant")) %>% 
-# pivot_wider(values_from = "quant", names_from = "thing")
-
-
-# i've been working to get end of life transport in there
-# but right now it's mistakenly characterized as tons
-
+# currently I am working on a "free input page"
+# where anyone can enter any tonnage for any available material
+# and see the impacts calculated as tons and as impacts
 
 # load packages
 library(shiny)

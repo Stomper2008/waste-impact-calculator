@@ -1,0 +1,198 @@
+---
+title: "WIC app sandbox"
+output: html_notebook
+author: Martin Brown, Martin.Brown@state.or.us
+---
+
+This R Markdown notebook is a place for me to experiment with code for the interactive app.  Experimenting will hopefully help me clean up the processing so it is as simple and fast as possible.  
+
+This file is probably going to be a big mess, so I don't know if it will do anybody else any good.
+
+# the free entry interface
+
+Here the user is going to be given combos of materials and dispositions.  They can adjust the tons and end-of-life mileage.  Then they will be shown the weights and impacts.
+
+For objects specific to this interface, I will use the prefix fe_.
+E.g. not "data" but "fe_data".
+
+```{r}
+# loading packages I like
+library(tidyverse)
+library(readxl)
+library(ggthemes)
+
+# importing impact factor data
+fe_no_records <- 2  #this is just a limiter during app development
+impact_factors <-
+  readRDS(
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
+    ) %>%
+  as.data.frame()
+
+# creating a blank small set of material-disposition combinations to work with
+# during testing
+fe_mat_disp_combos <- 
+  impact_factors %>%
+  filter(LCstage == "endOfLife") %>% 
+  sample_n(fe_no_records) %>%
+  unique() %>%
+  select(material, disposition, impliedMiles) %>%
+  mutate(
+    baseline_tons=round(runif(n=fe_no_records, min=0, max=10),1),
+    baseline_miles=impliedMiles,
+    alternative_tons=round(runif(n=fe_no_records, min=0, max=10),1),
+    alternative_miles=impliedMiles
+  ) %>%
+  select(-impliedMiles) %>%
+  as.data.frame() 
+
+# flipping so the form is 
+# scenario - material - disposition - tons - miles
+fe_mat_disp_combos_2 <- 
+  pivot_longer(fe_mat_disp_combos,baseline_tons:alternative_miles, 
+  names_to=c("scenario","thing"), names_sep="_",  
+  values_to=c("quant")) %>% 
+  pivot_wider(values_from = "quant", names_from = "thing")
+
+#so, mat_disp_combos_2 has the end-of-life information I need.
+#but production information isn't included.
+#so all I really need to do is double it and change the disposition to production.
+fe_mat_disp_combos_3 <-
+  bind_rows(
+    fe_mat_disp_combos_2,
+    mutate(
+      fe_mat_disp_combos_2,
+      disposition="production",
+      miles=0
+    )
+  ) %>%
+  arrange(material, scenario, disposition)
+
+# merging with impact factors
+fe_combos_with_impacts_detailed <-
+  left_join(
+    fe_mat_disp_combos_3,
+    impact_factors,
+    by = c("material", "disposition")
+  ) %>%
+  mutate(miles=ifelse(LCstage!="endOfLifeTransport",impliedMiles,miles)) %>%
+  arrange(impactCategory, material, scenario, LCstage, disposition) %>%
+  mutate(
+    impact=tons*impactFactor*miles/impliedMiles
+  )
+
+# summing tons, for tons chart
+fe_combos_with_tons <-
+  summarise(
+    group_by(
+      fe_mat_disp_combos_2,
+      scenario,
+      disposition
+    ),
+    tons=sum(tons)
+  ) %>% 
+  ungroup() %>%
+  arrange(scenario, disposition) %>%
+  mutate(
+    scenario=factor(scenario, levels=c("baseline", "alternative"))
+  )
+
+# summing impacts, for the impacts chart
+# here are impacts by LC stage
+fe_combos_with_impacts <-
+  summarise(
+    group_by(
+      fe_combos_with_impacts_detailed,
+      impactCategory,
+      impactUnits,
+      scenario,
+      LCstage
+    ),
+    impact=sum(impact)
+  ) %>% 
+  ungroup() %>%
+  arrange(impactCategory, scenario, LCstage) %>%
+  mutate(
+    scenario=
+      factor(scenario, levels=c("baseline", "alternative")),
+    LCstage=
+      factor(
+        LCstage, 
+        levels=c("production", "endOfLife", "endOfLifeTransport")
+      )
+  )
+
+# and here are total impacts for the scenario
+fe_summed_impacts <-
+  summarise(
+    group_by(
+      fe_combos_with_impacts, impactCategory, impactUnits, scenario
+    ),
+    impact=sum(impact)
+  ) %>%
+  ungroup() %>%
+  arrange(impactCategory, scenario)
+
+# draw the weight chart
+ggplot()+
+  ggtitle("weight (short tons)")+
+  theme_fivethirtyeight()+
+  geom_bar(
+    data=fe_combos_with_tons,
+    aes(x=scenario, y=tons, fill=disposition),
+    alpha=0.7,
+    stat="identity",
+    position="stack"
+  )+
+  theme(legend.position="bottom")
+
+# figuring the impact chart title
+fe_impact_chart_title <-
+  paste(
+  # impact category name
+    unique(
+      filter(fe_summed_impacts, impactCategory=="Energy demand")$impactCategory
+    ),
+    " (",
+  # impact category units
+    unique(
+      filter(fe_summed_impacts, impactCategory=="Energy demand")$impactUnits
+    ),
+  ")",
+  sep=""
+  )
+# draw the impact chart
+ggplot()+
+  ggtitle(fe_impact_chart_title)+
+  theme_fivethirtyeight()+
+  geom_bar(
+    data=filter(fe_combos_with_impacts, impactCategory=="Energy demand"),
+    aes(x=scenario, y=impact, fill=LCstage, color=LCstage),
+    alpha=0.7,
+    stat="identity",
+    position="stack"
+  )+
+  geom_point(
+    data=filter(fe_summed_impacts, impactCategory=="Energy demand"),
+    aes(x=scenario, y=impact),
+    shape=21,
+    size=10,
+    fill="orange"
+  )
+
+```
+
+so here is the dependency.
+
+the final weight chart data comes from
+
+* fe_combos_with_tons -- which is a reactive sum based on fe_mat_disp_combos_2
+* fe_mat_disp_combos_2 -- is a reactive rearrangement of fe_mat_disp_combos
+* fe_mat_disp_combos is the interactively edited data file.
+
+the final impact chart data comes from
+
+* fe_summed_impacts -- a reactive sum based on combos_with_impacts
+* fe_combos_with_impacts -- a reactive sum based on combos_with_impacts_detailed
+* fe_impact_chart_title -- a reactive value based on combos_with_impacts
+
