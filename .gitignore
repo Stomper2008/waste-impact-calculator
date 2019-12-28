@@ -5,6 +5,10 @@
 # Session Data files
 .RData
 
+# keep RData files in project directories
+!/oregon_deq/*RData
+!/wic-app/*RData
+
 # User-specific files
 .Ruserdata
 

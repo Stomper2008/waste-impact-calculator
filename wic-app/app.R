@@ -10,6 +10,7 @@ library(shiny)
 library(tidyverse)
 library(ggthemes)
 library(DT)
+library(plotly)
 
 # importing impact factor data
 # fe_no_records <- 5  #this is just a limiter during app development
@@ -61,19 +62,44 @@ fe_sketch <-
 
 
 # DEFINE USER INTERFACE
+# the user interface is a set of tabs...
+# -- WASTE IMPACT CALCULATOR (an introduction)
+# -- Context
+# -- Weight vs. Impacts
+# -- Waste Management vs. Prevention
+# -- Enter your own
+# -- Documentation
 ui <- 
   fluidPage(
 #    theme="sandstone.css",
     tabsetPanel(
       tabPanel(title="WASTE IMPACT CALCULATOR"),
+      tabPanel(title="Context"),
+      tabPanel(title="Weight vs. Impacts"),
+      tabPanel(title="Waste management vs. Prevention"),
       tabPanel(
-        title="free entry",
+        title="Enter your own waste data",
         fluidRow(
           column(
             5,
             wellPanel(
               h3("Enter your solid waste data"),
               DTOutput("x1")
+            ),
+            wellPanel(
+              h3("Download results"),
+              downloadButton(
+                outputId="fe_summaryOfTonsAndImpactsFile",
+                label="summary of weight and impacts"
+              ),
+              downloadButton(
+                outputId="fe_impactDetailsFile",
+                label="impact calculation details"
+              ),
+              downloadButton(
+                outputId="fe_formattedReport",
+                label="nicely formatted report"
+              )
             )
           ),
           column(
@@ -104,8 +130,8 @@ ui <-
           h3("Your data with impacts"),
           DTOutput("x4")
         )
-      ), # close tabPanel "free entry"
-      tabPanel(title="something else")
+      ), # close tabPanel "Enter your own"
+      tabPanel(title="Documentation")
     ) #close tabsetPanel
   ) #close fluidpage
 # end ui definition
@@ -116,13 +142,15 @@ server <- function(input, output) {
   output$x1 <- 
     renderDT(
       fe_mat_disp_combos,
+      options=list(pageLength=7),
       container=fe_sketch, #use header format defined previously
       # filter = "top",
       selection = 'none',
       rownames = FALSE,
-      editable = TRUE,
-      style="bootstrap",
-      class="table table-sm"
+      editable = TRUE
+      # ,
+      # style="bootstrap",
+      # class="table table-sm"
     )
   
   proxy <- dataTableProxy('x1')
@@ -177,8 +205,6 @@ server <- function(input, output) {
       ) %>%
       arrange(desc(scenario), material, disposition)
     })  
-  
-#  output$x3 <- renderTable(fe_mat_disp_combos_3())
   
   # merging with impact factors
   fe_combos_with_impacts_detailed <-
@@ -235,12 +261,11 @@ server <- function(input, output) {
         stat="identity",
         position="stack"
       )+
-#      coord_flip()+
       theme(legend.position="bottom")
     },
     height=500,
     width=375
-    ) #close renderPlot
+    ) 
   
   # summing impacts, for the impacts chart
   # here are impacts by LC stage
@@ -327,12 +352,19 @@ server <- function(input, output) {
       size=10,
       fill="orange"
     )
-    # +
-    # coord_flip()  
   },
   height=500,
   width=375
   )  # close renderPlot
+  
+  # create the file output
+  output$fe_impactDetailsFile <-
+    downloadHandler(
+      filename="wic_enter_your_own_impact_details.csv",
+      content = function(file) {
+        write.csv(fe_combos_with_impacts_detailed(), file, row.names = F)
+      }
+    )
   
   } # close server
 
