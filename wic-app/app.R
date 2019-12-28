@@ -12,15 +12,17 @@ library(ggthemes)
 library(DT)
 
 # importing impact factor data
-fe_no_records <- 5  #this is just a limiter during app development
+# fe_no_records <- 5  #this is just a limiter during app development
 impact_factors <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
   ) %>%
   as.data.frame()
 
-# creating a blank small set of material-disposition combinations to work with
-# during testing
+
+# DATA FOR THE FREE ENTRY PAGE
+# creating the list of materials and end-of-life dispositions
+# available for users to enter weights and mileages.
 fe_mat_disp_combos <- 
   impact_factors %>%
   filter(LCstage == "endOfLife") %>% 
@@ -39,60 +41,88 @@ fe_mat_disp_combos <-
   as.data.frame() %>%
   arrange(material, disposition)
 
-# user interface
+# A TABLE FORMAT FOR THE FREE ENTRY PAGE
+fe_sketch <-
+  htmltools::withTags(table(
+    class = 'display',
+    thead(
+      tr(
+        th(rowspan = 2, 'Material'),
+        th(rowspan=2, 'Disposition'),
+        th(colspan = 2, 'BASELINE scenario', style="text-align:center"),
+        th(colspan = 2, 'ALTERNATIVE scenario', style="text-align:center")
+      ),
+      tr(
+        lapply(rep(c('tons', 'miles'), 2), th)
+      )
+    )
+  )
+)
+
+
+# DEFINE USER INTERFACE
 ui <- 
   fluidPage(
-#    theme="bootstrap.css",
+#    theme="sandstone.css",
     tabsetPanel(
-      tabPanel(title="something"),
+      tabPanel(title="WASTE IMPACT CALCULATOR"),
       tabPanel(
         title="free entry",
-        sidebarLayout(
-          sidebarPanel(
-            selectInput(
-              inputId="fe_ImpactCategoryChoice",
-              label="choose your impact category",
-              choices = unique(impact_factors$impactCategory),
-              selected="Energy demand"
-            ),
-#            h2("the original table"),
-#            tableOutput("x0"),
-            h3("Enter your solid waste data"),
-            DTOutput("x1"),
-#            h2("Edits preserved and transformed"),
-#            tableOutput("x2"),
-#            h3("Edited data with production tons"),
-#            tableOutput("x3"),
-            h3("Your data with impacts"),
-            DTOutput("x4"),
-            width=7
+        fluidRow(
+          column(
+            5,
+            wellPanel(
+              h3("Enter your solid waste data"),
+              DTOutput("x1")
+            )
           ),
-          mainPanel(
-            plotOutput("x5"), #weight chart
-            plotOutput("x6"), #impact chart
-            width=5
+          column(
+            6,
+            selectInput(
+                inputId="fe_ImpactCategoryChoice",
+                label=h3("Choose your impact category"),
+                choices = unique(impact_factors$impactCategory),
+                selected="Energy demand",
+                width="100%"
+            ),
+            fluidRow(
+              column(
+                3,
+                h3("Weights"),
+                plotOutput("x5") #weight chart
+              ),
+              column(
+                3,
+                offset=3,
+                h3("Impacts"),
+                plotOutput("x6") #impact chart
+              )
+            )
           )
+        ),
+        fluidRow(
+          h3("Your data with impacts"),
+          DTOutput("x4")
         )
-      ),
+      ), # close tabPanel "free entry"
       tabPanel(title="something else")
-    )
+    ) #close tabsetPanel
   ) #close fluidpage
 # end ui definition
 
 # server
 server <- function(input, output) {
   
-  output$x0 <- renderTable(fe_mat_disp_combos)
-  
   output$x1 <- 
     renderDT(
       fe_mat_disp_combos,
-      filter = "top",
+      container=fe_sketch, #use header format defined previously
+      # filter = "top",
       selection = 'none',
       rownames = FALSE,
       editable = TRUE,
       style="bootstrap",
-      class="table-condensed"
+      class="table table-sm"
     )
   
   proxy <- dataTableProxy('x1')
@@ -112,7 +142,7 @@ server <- function(input, output) {
         proxy, fe_mat_disp_combos, resetPaging = FALSE, rownames=FALSE
       )  # important
     } else {}
-    fe_mat_disp_combos
+    # fe_mat_disp_combos
     
   })
   
@@ -196,7 +226,7 @@ server <- function(input, output) {
   output$x5 <- renderPlot({
     # draw the weight chart
     ggplot()+
-      ggtitle("weight (short tons)")+
+      ggtitle("short tons")+
       theme_fivethirtyeight()+
       geom_bar(
         data=fe_combos_with_tons(),
@@ -205,10 +235,11 @@ server <- function(input, output) {
         stat="identity",
         position="stack"
       )+
-      # coord_flip()+
+#      coord_flip()+
       theme(legend.position="bottom")
     },
-    height=350
+    height=500,
+    width=375
     ) #close renderPlot
   
   # summing impacts, for the impacts chart
@@ -299,7 +330,8 @@ server <- function(input, output) {
     # +
     # coord_flip()  
   },
-  height=350
+  height=500,
+  width=375
   )  # close renderPlot
   
   } # close server
