@@ -1,9 +1,61 @@
 # file app.R
 # working draft of waste impact calculator app
 
-# currently I am working on a "free input page"
-# where anyone can enter any tonnage for any available material
-# and see the impacts calculated as tons and as impacts
+# this is a pretty big shiny app
+# about the relationship between solid waste and life cycle 
+# environmental impacts
+
+# it's a whole tutorial and laboratory in a single app!
+# so maybe it's best to list the tabs in the tabset, because
+# they summarize the main functions of the app.
+
+# perhaps the main motif that the app presents is "keeping
+# the total in mind"... we want to actually lower the total
+# impact.  so individual results should be in the context 
+# of the total.
+
+# "WASTE IMPACT CALCULATOR" is the first tab.  Yes, it's the
+# name of the app.  Here users can read a few words about the 
+# app and watch an instructional video about how to use the 
+# other tabs and the basic "perspective" of the app...
+# which is converting solid waste stream info into estimated
+# life cycle impacts.
+
+# "Context" is the next tab.  It shows how the life cycle 
+# impacts of materials are not the same as the life cycle 
+# impacts of the waste stream.  Users may select to see
+# estimates of the difference between waste and materials 
+# for several Oregon "wastesheds" (counties, etc.).
+# (So here, shiny is filtering
+# a pre-existing data frame based on user choice.)
+
+# The "Weight vs. Impacts" tab gets more interactive.  Drawing from 
+# a large pre-prepared file of weights and impact calculations, 
+# the user can see how the weight of materials in chosen waste-
+# sheds compares to the life cycle impacts of materials.  This 
+# can help them spot materials with disproportionately high or 
+# low impacts... materials they may want to pursue or ignore.
+
+# The "Recycling vs. Reduction" tab allows users to play with
+# the differences between recycling and reduction.  They 
+# choose one or more materials and wastesheds.  They see 
+# estimated life cycle impacts for those materials for three
+# scenarios: zero recovery, the current mix of recovery and
+# disposal, and a "maximized recovery" scenario.  Usually
+# there aren't big differences between these.  They can also
+# move one or more sliders to see how reducing X tons of 
+# waste has the same benefit as recycling Y tons of it.  
+# Reduction is Y/X times as beneficial as recovery.
+
+# The "Enter your own waste" tab allows users to 
+# compare the life cycle impacts of waste materials using
+# a free entry format.  They can enter tonnages of various
+# materials, alone or in combination, and compare the 
+# impacts associated with them.  They can also enter
+# mileages for end-of-life transport to see how those
+# affect things (not much, usually).
+
+
 
 # load packages
 library(shiny)
@@ -11,6 +63,17 @@ library(tidyverse)
 library(ggthemes)
 library(DT)
 library(plotly)
+
+# importing some graphic conventions (to be expanded later)
+source(file="../oregon_deq/resources/theme_539.R")
+
+# creating a default chart style
+theme_539 <- function() {
+  theme_fivethirtyeight() +
+  theme(
+    rect=element_rect(fill=NA)
+  )
+}
 
 # importing impact factor data
 impact_factors <-
@@ -66,13 +129,6 @@ fe_sketch <-
 
 
 # DEFINE USER INTERFACE
-# the user interface is a set of tabs...
-# -- WASTE IMPACT CALCULATOR (an introduction)
-# -- Context
-# -- Weight vs. Impacts
-# -- Waste Management vs. Prevention
-# -- Enter your own
-# -- Documentation
 ui <- 
   fluidPage(
 #    theme="sandstone.css",
@@ -81,23 +137,31 @@ ui <-
       tabPanel(title="Context"),
       tabPanel(
         title="Weight vs. Impacts",
-        selectInput(
-          inputId="wvi_wasteshed_choice",
-          label="choose a wasteshed",
-          choices=unique(weight_vs_impact_chart_data$wasteshed),
-          selected = "Metro"
+        column(
+          3,
+          wellPanel(
+            selectInput(
+              inputId="wvi_wasteshed_choice",
+              label="choose a wasteshed",
+              choices=unique(weight_vs_impact_chart_data$wasteshed),
+              selected = "Metro"
+            ),
+            selectInput(
+              inputId="wvi_impact_cat_choice",
+              label="choose an impact category",
+              choices = unique(weight_vs_impact_chart_data$impactCategory),
+              selected="Global warming"
+            )
+          )
         ),
-        selectInput(
-          inputId="wvi_impact_cat_choice",
-          label="choose an impact category",
-          choices = unique(weight_vs_impact_chart_data$impactCategory),
-          selected="Global warming"
-        ),
-        plotOutput("wvi_chart")
-      ), #close Weight Vs. Impacts panel
-      tabPanel(title="Waste management vs. Prevention"),
+        column(
+          9,
+          plotOutput("wvi_chart")
+        )
+      ), # close tabPanel "Weight vs. Impacts"
+      tabPanel(title="Recycling vs. Recovery"),
       tabPanel(
-        title="Enter your own waste data",
+        title="Enter your own waste",
         fluidRow(
           column(
             5,
@@ -161,7 +225,7 @@ server <- function(input, output) {
   output$wvi_chart <-
     renderPlot({
       ggplot()+
-        theme_fivethirtyeight()+
+        theme_539()+
         geom_bar(
           data=
             weight_vs_impact_chart_data %>%
@@ -176,7 +240,8 @@ server <- function(input, output) {
           position="stack"
         )+
         facet_grid(.~datatype)+
-        coord_flip()
+        coord_flip()+
+        theme(legend.position = "none")
     })
   
   output$x1 <- 
