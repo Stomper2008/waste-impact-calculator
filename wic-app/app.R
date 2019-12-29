@@ -13,13 +13,17 @@ library(DT)
 library(plotly)
 
 # importing impact factor data
-# fe_no_records <- 5  #this is just a limiter during app development
 impact_factors <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
   ) %>%
   as.data.frame()
 
+# importing data for a key chart
+weight_vs_impact_chart_data <-
+  readRDS(
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/weight_vs_impact_chart_data.RData"
+  )
 
 # DATA FOR THE FREE ENTRY PAGE
 # creating the list of materials and end-of-life dispositions
@@ -75,7 +79,22 @@ ui <-
     tabsetPanel(
       tabPanel(title="WASTE IMPACT CALCULATOR"),
       tabPanel(title="Context"),
-      tabPanel(title="Weight vs. Impacts"),
+      tabPanel(
+        title="Weight vs. Impacts",
+        selectInput(
+          inputId="wvi_wasteshed_choice",
+          label="choose a wasteshed",
+          choices=unique(weight_vs_impact_chart_data$wasteshed),
+          selected = "Metro"
+        ),
+        selectInput(
+          inputId="wvi_impact_cat_choice",
+          label="choose an impact category",
+          choices = unique(weight_vs_impact_chart_data$impactCategory),
+          selected="Global warming"
+        ),
+        plotOutput("wvi_chart")
+      ), #close Weight Vs. Impacts panel
       tabPanel(title="Waste management vs. Prevention"),
       tabPanel(
         title="Enter your own waste data",
@@ -138,6 +157,27 @@ ui <-
 
 # server
 server <- function(input, output) {
+  
+  output$wvi_chart <-
+    renderPlot({
+      ggplot()+
+        theme_fivethirtyeight()+
+        geom_bar(
+          data=
+            weight_vs_impact_chart_data %>%
+            filter(
+              (impactCategory=="Weight" | 
+                impactCategory == input$wvi_impact_cat_choice)
+              & wasteshed == input$wvi_wasteshed_choice
+            ),
+          aes(x=material, y=pctOfTotal, color=datatype, fill=datatype),
+          alpha=0.5,
+          stat="identity",
+          position="stack"
+        )+
+        facet_grid(.~datatype)+
+        coord_flip()
+    })
   
   output$x1 <- 
     renderDT(
