@@ -1,0 +1,210 @@
+---
+title: "Creating Alternative Recovery Rate results for Oregon wastesheds"
+output: html_notebook
+---
+
+by Martin Brown, Martin.Brown@state.or.us
+
+The goal of this R markdown notebook is to generate the results used in ARR analyses, specifically for Oregon wastesheds.
+
+Basically I need to take the existing solid waste data file and impact factors, and calculate weight and impact factors for each of them.  At first I will just do this for the current "baseline" data set, but then I will create variant data sets based on the ARR scenarios.
+
+I will document this more later.
+
+Important assumptions:
+
+* the baseline mass profile contains the entire solid waste stream
+* the impact factor file contains not just impact factors for all the dispositions in the mass profile, but all the dispositions we wish to consider.
+* material and disposition names are perfectly matched between the mass profile and impact factor files
+
+Load in some packages I might use
+```{r}
+library(tidyverse)
+library(scales)
+library(knitr)
+library(rmarkdown)
+library(svglite)
+library(ggthemes)
+```
+
+Load in the baseline masses and the impact factors.
+```{r}
+baseline_mass_profile_deq <-
+  readRDS("intermediate_output/baseline_mass_profile_deq.RData")
+  
+impact_factors_deq <-
+  readRDS("intermediate_output/impact_factors_deq.RData")
+```
+
+The baseline mass profile includes a field which is a bit subjective, "umbrellaDisposition."  This records whether a particular end-of-life disposition is considered to be recovery or disposal.  This interpretation may differ from wasteshed to wasteshed, depending on the law.
+
+Some of these values are missing.  In addition, some may need to be changed in the future.  So in the future I'm probably going to need a lookup table of some kind to record whether a particular wasteshed and particular disposition is recovery or disposal.  But for now I will just use a case_when statement.
+
+```{r}
+masses <-
+  baseline_mass_profile_deq %>%
+  mutate(
+    umbDisp=ifelse(
+      !is.na(umbDisp),
+      umbDisp,
+      case_when(
+        disposition=="combustion" ~ "Disposal",
+        disposition=="recycling" ~ "Recovery",
+        disposition=="anaerobicDigestion" ~ "Recovery",
+        disposition=="composting" ~ "Recovery",
+        disposition=="recyclingPozzolan" ~ "Recovery",
+        disposition=="recyclingToFiberglass" ~ "Recovery",
+        disposition=="reuseContainer" ~ "Recovery",
+        disposition=="useAsAggregate" ~ "Disposal"
+      )
+    )
+  )
+```
+
+Ok, now that the umbrella dispositions are aligned, I need to generate the end-of-life mass table in the particular form necessary for the weight chart.
+
+```{r}
+masses_eol_by_umbDisp <-
+  masses %>%
+  filter(LCstage=="endOfLife")
+
+masses_eol_by_umbDisp <-
+  summarise(
+    group_by(masses_eol_by_umbDisp, year, wasteshed, material, umbDisp),
+    tons=sum(tons)
+  ) %>%
+  ungroup() %>%
+  mutate(datatype="weight")
+
+masses_eol_with_rr <-
+  summarise(
+    group_by(masses_eol_by_umbDisp, year, wasteshed, material),
+    tons = sum(tons),
+    recovered_tons = sum(ifelse(umbDisp=="Recovery",tons,0))
+  ) %>%
+  ungroup() %>%
+  group_by(year, wasteshed) %>%
+  mutate(
+    wb_recovery_rate=recovered_tons/tons,
+    pctOfTotal = tons/sum(tons)
+    ) %>% 
+  ungroup()
+```
+
+Now I've got to get impact numbers.  This will be considerably longer as there are approximately half a dozen impact categories I am using.
+
+The following impact calculation will (eventually) depend on end-of-life-transport mileages customized to each wasteshed.  For now I will just use the defaults
+
+```{r}
+masses_with_impacts_in_detail <-
+  left_join(
+    masses %>% filter(LCstage!="endOfLifeTransport") %>% select(-LCstage),
+    impact_factors_deq,
+    by = c("material", "disposition")
+  ) %>%
+  mutate(
+    miles=impliedMiles,  #sets end-of-life-mileage to default values
+    # nb "miles" should only be changed when LCstage="endOfLifeTransport"
+    # otherwise the following impact calculation will be wrong
+    impact=tons*impactFactor*miles/impliedMiles #calculates impacts
+  )
+
+impacts_by_wasteshed_and_material <-
+  summarise(
+    group_by(
+      masses_with_impacts_in_detail,
+      impactCategory,
+      impactUnits,
+      year, wasteshed, material
+    ),
+    impact=sum(impact)
+  ) %>%
+  ungroup() %>%
+  group_by(impactCategory, impactUnits, year, wasteshed) %>%
+  mutate(pctOfTotal=impact/sum(impact)) %>%
+  ungroup()
+```
+
+It's weird, it looks like production tons are a little more than end of life tons at this point.  I will need to put in some code later to check that and diagnose it.
+
+But for now let's move on.
+
+At this point I am almost ready to create the first two "potential of recovery" type charts, which are the wastestream waste chart, and the percent weight vs. percent impact chart.
+
+So i need to make a file that has these values
+
+impactCategory
+impactUnits
+year
+wasteshed
+material
+datatype (weight or impact)
+stat (pctTons, or pctOfImpact)
+
+```{r}
+junk1 <-
+  masses_eol_with_rr %>%
+  select(year, wasteshed, material, tons, pctOfTotal) %>%
+  mutate(
+    impactCategory="Weight", 
+    impactUnits="short tons",
+    datatype="weight"
+    ) %>%
+  rename(magnitude=tons)
+junk2 <-
+  impacts_by_wasteshed_and_material %>%
+  mutate(datatype="impact") %>%
+  rename(magnitude=impact)
+
+material_sort_order <-
+  summarise(
+    group_by(masses_eol_with_rr, material),
+    tons=sum(tons)
+  ) %>%
+  ungroup() %>%
+  arrange(tons) %>%
+  pull(material)
+
+weight_vs_impact_chart_data <-
+  bind_rows(junk2, junk1) %>%
+  mutate(
+    datatype=factor(datatype, levels=c("weight","impact")),
+    material=factor(material, levels=material_sort_order)
+  )
+
+saveRDS(
+  weight_vs_impact_chart_data,
+  "intermediate_output/weight_vs_impact_chart_data.RData"
+)
+write.csv(
+  weight_vs_impact_chart_data,
+  "intermediate_output/weight_vs_impact_chart_data.csv",
+  row.names = F
+)
+
+```
+
+So weight_vs_impact_chart_data should have what I need.
+
+let's make the chart.
+
+```{r fig.height=4.5, fig.width=6}
+junk3 <-
+  weight_vs_impact_chart_data %>%
+  filter(
+    (impactCategory=="Weight" | impactCategory=="Energy demand")
+    & wasteshed=="Benton"
+  ) 
+ggplot()+
+  theme_fivethirtyeight()+
+  geom_bar(
+    data=junk3,
+    aes(x=material, y=pctOfTotal, color=datatype, fill=datatype),
+    alpha=0.5,
+    stat="identity",
+    position="stack"
+  )+
+  facet_grid(.~datatype)+
+  coord_flip()
+  
+```
