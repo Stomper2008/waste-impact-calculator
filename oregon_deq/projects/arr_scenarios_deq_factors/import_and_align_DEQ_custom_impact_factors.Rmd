@@ -11,6 +11,8 @@ This R Markdown notebook documents my work to import DEQ's in-house impact facto
 
 Some basic orientation on the Waste Impact Calculator (formerly IMFO) model can be found in the old IMFO project profile on DEQ's local network drive at \\deqhq1\swrshare\!PROGRAMS-SOLID-WASTE-(PSW)\LCA\Projects\IMFO\Phase 3\project planning and progress\IMFOprojectProfile20180214.pdf .
 
+COMMENT ON 12/29/19.  I AM RUNNING INTO SOME AWKWARDNESS IN LATER ANALYSES BASED ON THE FACT THAT THE BASELINE MASS PROFILE HAS PRODUCTION TONS IN IT.  I NEED TO FILTER A LOT OUT AND THEN RECOMBINE STUFF.  I REALLY NEED TO REIN IT IN AND ONLY TRACK THE OBSERVED END-OF-LIFE TONS AND THE MILEAGE ASSOCIATED WITH THE WASTESHED/DISPOSITION COMBINATION.  THE PRODUCTION TONS AND END-OF-LIFE TRANSPORT TONS WILL BE AUTOMATICALLY APPLIED WHEN I MERGE AGAINST THE IMPACT FACTOR FILE.  I GUESS I ALSO NEED TO PRESERVE THE UMBRELLA DISPOSITION.
+
 ## Introduction
 
 For the WIC model to calculate impacts correctly, it needs to draw on two data files which are unified in terms of certain key variables.

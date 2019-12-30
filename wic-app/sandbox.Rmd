@@ -195,3 +195,77 @@ the final impact chart data comes from
 * fe_combos_with_impacts -- a reactive sum based on combos_with_impacts_detailed
 * fe_impact_chart_title -- a reactive value based on combos_with_impacts
 
+
+# experimenting with a heatmap type charts
+
+For wastesheds, I would like to make heatmaps that show all the impact categories at once.  
+the heatmap will be a grid. horizontal axis: materials. vertical axis: impact categories.  
+cells in the grid will imply a quantity.
+the quantity can be either the that material's portion of the total impact for that impactCategory
+or the material's disproportionateness -- its ratio of impact to mass.
+i guess you could call that "impact intensity"
+
+i'm going to use geom_tile.
+i need to supply it with x (material), y (impactCategory), and fill (the value i'm figuring above)
+- so i need to pivot the data wider.
+- weight values are a separate column
+- impact values are a separate column
+- impact summaries are a separate column
+
+
+```{r}
+# loading in the data that could help
+# importing data for a key chart
+weight_vs_impact_chart_data <-
+  readRDS(
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/weight_vs_impact_chart_data.RData"
+  )
+
+# getting the weight portion flipped
+junk11 <- 
+  weight_vs_impact_chart_data %>%
+  filter(datatype=="weight") %>%
+  rename(tons=magnitude, pctTons=pctOfTotal) %>%
+  select(-datatype, -impactCategory, -impactUnits)
+# getting the impact portion flipped
+junk12 <-
+  weight_vs_impact_chart_data %>%
+  filter(datatype=="impact") %>%
+  rename(impact=magnitude, pctImpact=pctOfTotal) %>%
+  select(-datatype)
+# now merging them
+junk13 <-
+  full_join(
+    junk12,
+    junk11,
+    by=c("year","wasteshed","material")
+  ) %>%
+  mutate(proportionateness=pctImpact/pctTons)
+```
+
+now draw the map
+
+```{r}
+ggplot()+
+  geom_tile(
+    data=filter(junk13, wasteshed=="Metro"),
+    aes(x=material, y=impactCategory, fill=pctImpact)
+  )+
+  theme(
+    axis.text.x = element_text(angle=45, hjust=1)
+  )
+```
+
+and another one based on proportionateness
+
+```{r}
+ggplot()+
+  geom_tile(
+    data=filter(junk13, wasteshed=="Metro"),
+    aes(x=material, y=impactCategory, fill=proportionateness)
+  )+
+  theme(
+    axis.text.x = element_text(angle=45, hjust=1),
+    legend.position = "bottom"
+  )
+```

@@ -208,3 +208,128 @@ ggplot()+
   coord_flip()
   
 ```
+
+## Interpreting the alternative recovery rate law
+
+Now it's time to do the thing I've been dreading... figure out how to interpret the "Alternative Recovery Rate" law in terms of data processing.
+
+To sum up, oregon law requires DEQ to calculate "recovery rates" based on the impacts associated with different conceptual ways of dealing with solid waste.  In the Waste Impact Calculator model, this is equivalent to taking observed solid waste and applying it to different end of life dispositions.  For each conceptual management scenario, a mass profile is created.  Each mass profile can be converted into a life cycle impact.  Comparing the impacts associated with the scenarios generates the alternative recovery rate.
+
+To get more detailed than that, let's look at the [text of the Alternative Recovery Rate law](https://www.oregonlaws.org/ors/459A.012).
+
+>ORS 459A.012 - Alternative recovery rate calculation methods
+
+>(1)(a) The Environmental Quality Commission shall develop and adopt by rule a method for calculating recovery rates based on the rate of energy savings achieved by recovering materials from the general solid waste stream. The calculation method must account for:
+
+>(A) The energy savings achieved from material recovery, as opposed to material disposal;
+
+>(B) Recovery of energy from waste, including methane recovery at landfills; and
+
+>(C) Energy saving practices implemented as part of local solid waste reduction, reuse and recycling programs or solid waste management programs, including but not limited to:
+
+>(i) Fuel, efficiency and other improvements involving waste collection vehicles;
+
+>(ii) Energy efficiency improvements at recycling and solid waste facilities; and
+
+>(iii) Production of energy from renewable sources at solid waste facilities through means other than recovery of energy from waste, such as the use of solar energy to produce electricity.
+
+>(b) A recovery rate of 100 percent under the calculation method is equivalent to the energy savings achieved if all materials in the general solid waste stream are directed to their optimal final destinations for purposes of the energy savings that can be achieved through the recovery of each type of material.
+
+>(2) Using the calculation method developed under subsection (1) of this section, the commission shall adopt by rule recovery goals consistent with the goals under ORS 459A.010 (Policy) (1) and (2).
+
+>(3)(a) The commission may develop and adopt by rule other methods for calculating recovery rates from the general solid waste stream that are based on achieving outcomes that result from waste recovery and management, and may include but are not limited to the following:
+
+>(A) Reductions in greenhouse gas emissions.
+
+>(B) Reductions in the emissions of toxic or potentially toxic chemicals.
+
+>(C) Water conservation.
+
+>(b) The commission may adopt by rule other outcome-based recovery goals consistent with the goals under ORS 459A.010 (Policy) (1) and (2) using outcome-based calculation methods developed under this subsection. [2015 c.534 §9]
+
+That's the whole text.  Now let's parse it a bit.
+
+>(1)(a) ...recovery rates based on the rate of energy savings achieved by recovering materials from the general solid waste stream. 
+
+So it is about recovering materials from the general solid waste stream.   That's the data DEQ usually deals with, so no big change in focus there.  Important point: existing law already defines "recovery."  So we are not changing the definition of "recovery."
+
+> The calculation method must account for:
+
+>(A) The energy savings achieved from material recovery, as opposed to material disposal;
+
+This part sets up the first contrast... the SAVINGS achieved via recovery IN CONTRAST to disposal.  Disposal is also defined in law.  So, savings= energy associated with disposal MINUS energy associated with recovery.
+
+Savings are always a DIFFERENCE.  In this case the difference is between the energy impact of disposal and the energy impact of recovery.
+
+This is the key thing.  SAVINGS ARE A DIFFERENCE.
+
+>(B) Recovery of energy from waste, including methane recovery at landfills; and
+
+This part insists that energy recovery, including methane recovery at landfills, be part of calculations.  This is already the case.  Peter Canepa's landfilling and incineration impact factors include energy recovered via combustion.  I should confirm this.
+
+I do not take this line to mean that the state's definition of recovery is changing.  This section of law does not overrule the rest of the law, it merely provides an alternative statistic for progress.
+
+>(C) Energy saving practices implemented as part of local solid waste reduction, reuse and recycling programs or solid waste management programs, including but not limited to:
+
+>(i) Fuel, efficiency and other improvements involving waste collection vehicles;
+
+>(ii) Energy efficiency improvements at recycling and solid waste facilities; and
+
+>(iii) Production of energy from renewable sources at solid waste facilities through means other than recovery of energy from waste, such as the use of solar energy to produce electricity.
+
+These clauses are problematic from a practical perspective.  The law is about differences in energy use between disposal and recovery.  If there are energy efficiency improvements within the infrastructure, they could affect disposal energy use, recovery energy use, or both.  So it's not clear where such improvements would be applied, or if they would influence the ultimate calculation of DIFFERENCE between disposal and recovery.
+
+In addition, figuring out the energy impact characteristics of specific technological changes is a lot of work that requires a skilled analyst. Investigating every notion of this kind could easily overwhelm DEQ's office.  This seems like a bad use of ratepayer money when it is very likely such technological changes will have only small influence over the ultimate energy impact numbers.
+
+Accordingly, I suggest that any corrections of this kind be supplied by the wastesheds themselves.  I will provide them with a format to use.  And they must submit a file in that format, with documentation of evidence behind their numbers.
+
+>(b) A recovery rate of 100 percent under the calculation method is equivalent to the energy savings achieved if all materials in the general solid waste stream are directed to their optimal final destinations for purposes of the energy savings that can be achieved through the recovery of each type of material.
+
+This is the other key section.  The energy use associated with recovery is to be calculated for the OPTIMAL scenario.  Where each individual material goes to its lowest-impact destination.
+
+This is where the methodological stuff ends.  I am left with this interpretation...
+
+* savings is a difference
+* the maximum possible savings is energy use linked to DISPOSING EVERYTHING minus energy use linked to RECOVERING EVERYTHING OPTIMALLY. This difference defines the 100% recovery rate.
+* the current savings is energy use linked to DISPOSING EVERYTHING minus the energy use linked to THE CURRENT MIX OF DISPOSAL AND RECOVERY.
+
+Or, let's shorten the lingo and give these scenarios names.
+
+* current savings = DISPOSE_ALL - ACTUAL
+* max possible savings = DISPOSE_ALL - OPTIMAL
+* alternative recovery rate = CURRENT_SAVINGS/MAX_POSSIBLE_SAVINGS
+
+>(2) Using the calculation method developed under subsection (1) of this section, the commission shall adopt by rule recovery goals consistent with the goals under ORS 459A.010 (Policy) (1) and (2).
+
+This section just says there will be written goals based on these numbers.
+
+>(3)(a) The commission may develop and adopt by rule other methods for calculating recovery rates from the general solid waste stream that are based on achieving outcomes that result from waste recovery and management, and may include but are not limited to the following:
+
+>(A) Reductions in greenhouse gas emissions.
+
+>(B) Reductions in the emissions of toxic or potentially toxic chemicals.
+
+>(C) Water conservation.
+
+>(b) The commission may adopt by rule other outcome-based recovery goals consistent with the goals under ORS 459A.010 (Policy) (1) and (2) using outcome-based calculation methods developed under this subsection. [2015 c.534 §9]
+
+These sections just say that the same logic can be applied to other impact categories.  
+
+So whatever computing logic I come up with, it has to work for all the impact categories, not just energy use.  That's no big deal.
+
+### The way to do this.
+
+The ACTUAL scenario is easy.  Just take the current materials, dispositions, and end-of-life mileages and calculate the impacts for them.  All I really need to do here is to add a "scenario" label to the existing mass profile.
+
+The DISPOSE_ALL scenario is a little trickier.  All of the currently disposed stuff will go to the same dispositions.  But all of the currently recovered stuff will go to disposal dispositions.  Simplest would just be to landfill it I suppose.  But more accurate might be to use the same mix of disposal dispositions (landfilling vs. incineration) as are currently used.  A bit of a pain but doable.
+
+The OPTIMAL scenario is the most labor.  So, for each wasteshed and material, there are a number of plausible recovery dispositions.  The aggregate impact factors for each (a combination of end-of-life impact factor and end-of-life-transport factor for the custom distance) must be calculated and then sorted.  The disposition with the lowest impact factor is the one that will then be applied to ALL of that wasteshed's material.  
+
+These dispositions may actually be different for different impact categories... meaning there are actually numerous different versions of the OPTIMAL scenario, depending on which impact category you are interested in.
+
+To deal with this hassle, you might choose one impact category.  Or you might average them.  Or I guess you could add an additional indexing variable to keep them all separate... but that would make display in the shiny app weird.  You would display only the optimal mass profile associated with the currently selected impact category.
+
+I guess this indexing variable would have the same range of values as "impactCategory".
+
+Ok, I have a direction.  Next step is just to do it.  Just do it systematically.  Build in checks.
+
