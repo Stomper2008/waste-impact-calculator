@@ -42,3 +42,6 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 .Rproj.user
+
+# Sandbox output (experiments for app)
+/wic-app/sandbox_output/

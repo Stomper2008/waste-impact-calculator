@@ -19,6 +19,7 @@ E.g. not "data" but "fe_data".
 # loading packages I like
 library(tidyverse)
 library(ggthemes)
+library(svglite)
 
 # importing impact factor data
 fe_no_records <- 2  #this is just a limiter during app development
@@ -246,7 +247,9 @@ junk13 <-
 now draw the map
 
 ```{r}
+source("../oregon_deq/resources/theme_539.R")
 ggplot()+
+  theme_539()+
   geom_tile(
     data=filter(junk13, wasteshed=="Metro"),
     aes(x=material, y=impactCategory, fill=pctImpact)
@@ -254,7 +257,11 @@ ggplot()+
   theme(
     axis.text.x = element_text(angle=45, hjust=1)
   )
+ggsave("sandbox_output/is_theme_539_working.png", bg="transparent")
+ggsave("sandbox_output/is_theme_539_working.svg", bg="transparent")
 ```
+
+Note-- to save with a transparent background, I need to add bg="transparent" to the ggsave call.
 
 and another one based on proportionateness
 
