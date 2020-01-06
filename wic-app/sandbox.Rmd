@@ -20,6 +20,7 @@ E.g. not "data" but "fe_data".
 library(tidyverse)
 library(ggthemes)
 library(svglite)
+library(viridis)
 
 # importing impact factor data
 fe_no_records <- 2  #this is just a limiter during app development
@@ -241,12 +242,16 @@ junk13 <-
     junk11,
     by=c("year","wasteshed","material")
   ) %>%
-  mutate(proportionateness=pctImpact/pctTons)
+  mutate(
+    proportionateness = pctImpact/pctTons,
+    impactCategory = 
+      factor(impactCategory, levels=unique(impactCategory))
+    )
 ```
 
 now draw the map
 
-```{r}
+```{r fig.width=8, fig.height=4}
 source("../oregon_deq/resources/theme_539.R")
 ggplot()+
   theme_539()+
@@ -254,8 +259,20 @@ ggplot()+
     data=filter(junk13, wasteshed=="Metro"),
     aes(x=material, y=impactCategory, fill=pctImpact)
   )+
+  scale_x_discrete(
+    limits=rev(levels(junk13$material)),
+    position="top"
+    )+
+  scale_y_discrete(limits=rev(levels(junk13$impactCategory)))+
+  scale_fill_viridis(
+    guide=guide_colorbar(direction="vertical")
+  )+
+#  scale_fill_continuous(guide=guide_colorbar(direction="vertical"))+
   theme(
-    axis.text.x = element_text(angle=45, hjust=1)
+    axis.text.x = element_text(angle=45, hjust=0),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    legend.position = "right"
   )
 ggsave("sandbox_output/is_theme_539_working.png", bg="transparent")
 ggsave("sandbox_output/is_theme_539_working.svg", bg="transparent")
@@ -265,14 +282,37 @@ Note-- to save with a transparent background, I need to add bg="transparent" to 
 
 and another one based on proportionateness
 
-```{r}
+```{r fig.width=8, fig.height=4}
 ggplot()+
   geom_tile(
     data=filter(junk13, wasteshed=="Metro"),
-    aes(x=material, y=impactCategory, fill=proportionateness)
+    aes(
+      x=material, 
+      y=impactCategory, 
+      fill=proportionateness
+    )
+  ) +
+  scale_x_discrete(
+    limits=rev(levels(junk13$material)),
+    position = "top"
+    )+
+  scale_y_discrete(limits=rev(levels(junk13$impactCategory)))+
+  scale_fill_viridis(
+    option="plasma",
+#    option="cividis",
+#    option="inferno",
+  #  option="magma",
+    guide=guide_colorbar(direction="vertical")
   )+
+#  scale_fill_continuous(guide=guide_colorbar(direction="vertical"))+
   theme(
-    axis.text.x = element_text(angle=45, hjust=1),
-    legend.position = "bottom"
+    axis.text.x = element_text(angle=45, hjust=0),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    legend.position = "right"
   )
 ```
+
+Looks like I have the kind of data needed for the heat maps.
+The viridis scale is good -- and its associates, magma and plasma.
+I think I can incorporate these into the app now.
