@@ -45,3 +45,6 @@ vignettes/*.pdf
 
 # Sandbox output (experiments for app)
 /wic-app/sandbox_output/
+
+# app automatically generated images
+/wic-app/Rplot*
