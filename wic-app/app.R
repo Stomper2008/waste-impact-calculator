@@ -36,6 +36,10 @@
 # can help them spot materials with disproportionately high or 
 # low impacts... materials they may want to pursue or ignore.
 
+# The "Impact hotspots" or "heatmap" tab shows how materials and
+# impact categories tend to group together in terms of the scale 
+# of impacts.
+
 # The "Recycling vs. Reduction" tab allows users to play with
 # the differences between recycling and reduction.  They 
 # choose one or more materials and wastesheds.  They see 
@@ -63,6 +67,7 @@ library(tidyverse)
 library(ggthemes)
 library(DT)
 library(plotly)
+library(heatmaply)
 
 # importing some graphic conventions (to be expanded later)
 source(file="../oregon_deq/resources/theme_539.R")
@@ -87,6 +92,41 @@ weight_vs_impact_chart_data <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/weight_vs_impact_chart_data.RData"
   )
+
+# DATA FOR THE HEATMAP PAGE
+# getting the weight portion flipped
+hm_11 <- 
+  weight_vs_impact_chart_data %>%
+  filter(datatype=="weight") %>%
+  rename(tons=magnitude, pctTons=pctOfTotal) %>%
+  select(-datatype, -impactCategory, -impactUnits)
+# getting the impact portion flipped
+hm_12 <-
+  weight_vs_impact_chart_data %>%
+  filter(datatype=="impact") %>%
+  rename(impact=magnitude, pctImpact=pctOfTotal) %>%
+  select(-datatype)
+# now merging them
+hm_13 <-
+  full_join(
+    hm_12,
+    hm_11,
+    by=c("year","wasteshed","material")
+  ) %>%
+  mutate(
+    proportionateness = pctImpact/pctTons,
+    impactCategory = 
+      factor(impactCategory, levels=unique(impactCategory))
+  )
+# limiting to columns I need
+# there are two tables because each one heatmap can only have one 
+# dependent
+hm_14a <-
+  hm_13 %>% 
+  select(impactCategory, wasteshed, material, pctImpact)
+hm_14b <-
+  hm_13 %>% 
+  select(impactCategory, wasteshed, material, proportionateness)
 
 # DATA FOR THE FREE ENTRY PAGE
 # creating the list of materials and end-of-life dispositions
@@ -133,8 +173,14 @@ ui <-
   fluidPage(
 #    theme="sandstone.css",
     tabsetPanel(
-      tabPanel(title="WASTE IMPACT CALCULATOR"),
-      tabPanel(title="Context"),
+      tabPanel(
+        title="WASTE IMPACT CALCULATOR",
+        "An instructional video will go here."
+      ),
+      tabPanel(
+        title="Context",
+        "Charts placing the impacts of waste vs. all materials will go here."
+        ),
       tabPanel(
         title="Weight vs. Impacts",
         column(
@@ -159,7 +205,22 @@ ui <-
           plotOutput("wvi_chart")
         )
       ), # close tabPanel "Weight vs. Impacts"
-      tabPanel(title="Recycling vs. Recovery"),
+      
+      tabPanel(
+        title="Impact hotspots",
+        wellPanel(
+          selectInput(
+            inputId="hm_wasteshed_choice",
+            label="choose a wasteshed",
+            choices = unique(hm_13$wasteshed),
+            selected = "Metro"
+          )
+        ), #end wellPanel
+        tableOutput("hm_matrix"),
+        plotlyOutput(outputId = "hm_chart_pctImpact")
+        ),
+      
+      tabPanel(title="Recycling vs. Reduction"),
       tabPanel(
         title="Enter your own waste",
         fluidRow(
@@ -244,6 +305,46 @@ server <- function(input, output) {
         theme(legend.position = "none")
     })
   
+  # REACTIVE OBJECTS FOR THE HEATMAP PAGE
+  # second try: make a plotly heatmap from input-filtered data
+  hm_15aa <- reactive({
+    hm_14a %>%
+      filter(wasteshed==input$hm_wasteshed_choice) %>%
+      select(-wasteshed) %>%
+      pivot_wider(
+        names_from = "impactCategory",
+        values_from = "pctImpact"
+      ) %>%
+      as.data.frame() %>%
+      mutate(material=as.character(material))
+  })
+  
+  # i need to get the ordered list of materials to use as row names
+  # later, so..
+  hm_15ab <- reactive({
+    hm_15aa()$material
+  })
+  
+  hm_15ac <- reactive({
+    hm_15aa() %>%
+      select(-material) %>%
+      as.matrix()
+  })
+  
+  output$hm_matrix <- 
+    renderTable(hm_15aa())
+  # second try: make a plotly heatmap with selected data
+  # and external names
+  output$hm_chart_pctImpact <-
+    renderPlotly(
+      heatmaply(
+        x=hm_15ac(), labRow = hm_15ab(),
+        colors = viridis( n=256, begin=0, end=1, option="plasma")
+      )
+    )
+  
+
+  # REACTIVE OBJECTS AND OUTPUTS FOR THE ENTER-YOUR-OWN PAGE  
   output$x1 <- 
     renderDT(
       fe_mat_disp_combos,

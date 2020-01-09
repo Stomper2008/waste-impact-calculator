@@ -11,7 +11,7 @@ This R Markdown notebook documents my work to import DEQ's in-house impact facto
 
 Some basic orientation on the Waste Impact Calculator (formerly IMFO) model can be found in the old IMFO project profile on DEQ's local network drive at \\deqhq1\swrshare\!PROGRAMS-SOLID-WASTE-(PSW)\LCA\Projects\IMFO\Phase 3\project planning and progress\IMFOprojectProfile20180214.pdf .
 
-COMMENT ON 12/29/19.  I AM RUNNING INTO SOME AWKWARDNESS IN LATER ANALYSES BASED ON THE FACT THAT THE BASELINE MASS PROFILE HAS PRODUCTION TONS IN IT.  I NEED TO FILTER A LOT OUT AND THEN RECOMBINE STUFF.  I REALLY NEED TO REIN IT IN AND ONLY TRACK THE OBSERVED END-OF-LIFE TONS AND THE MILEAGE ASSOCIATED WITH THE WASTESHED/DISPOSITION COMBINATION.  THE PRODUCTION TONS AND END-OF-LIFE TRANSPORT TONS WILL BE AUTOMATICALLY APPLIED WHEN I MERGE AGAINST THE IMPACT FACTOR FILE.  I GUESS I ALSO NEED TO PRESERVE THE UMBRELLA DISPOSITION.
+This code has been around a while in various forms; the emphasis in my current work on it is to make the baseline mass profiles end-of-life only, but also reflective of all the conceivable end-of-life options.
 
 ## Introduction
 
@@ -68,14 +68,14 @@ Here i'm going to load in packages I use.
 Normally I also use "checkpoint" to try to control package versions, but it has been screwy lately, so it is blanked out for now.
 ```{r}
 # doing a bit of version control, setting packages to beginning of 2019
-library(checkpoint)
+# library(checkpoint)
 # checkpoint("2018-09-30", verbose = T)
 
 # getting packages I might need
 library(tidyverse)
 library(readxl)
 library(openxlsx)
-# library(RODBC)
+library(RODBC)
 library(scales)
 library(knitr)
 library(rmarkdown)
@@ -516,140 +516,441 @@ rm(ifEOLJunk1, ifEOLJunk2, ifEOLJunk3, ifJunk1, ifJunk2, ifProdJunk1,
 
 So, as a test, I checked the "Glass" impact factors in impact_factors_deq against Peter C's original spreadsheet and everything checked out.  The important thing to remember is that the end-of-life transport factors include an implied mileage... i.e. at this point they are NOT in per-mile terms.
 
-## standardizing the names of materials and dispositions against deq solid waste data
+```{r}
+# load in the waste data and split it into the old object names
+observedWaste <- readRDS("intermediate_output/observedWaste.RData")
+disposal_tons_by_mrs_material <-
+  observedWaste %>% 
+  filter(source=="disposal_tons_by_mrs_material") %>%
+  select(-source, -swims_disposition_code)
+recovery_tons_by_mrs_material <-
+  observedWaste %>%
+  filter(source=="recovery_tons_by_mrs_material") %>%
+  select(-source)
+rm(observedWaste)
+```
 
-To do this truly properly, I need to:
-* create a zero file that contains all the possibilities of material, LCstage, and disposition in Peter C's impact factors, but zero tons.
-* replicate that zero file across all the combos of year and wasteshed in the solid waste file.
-* convert all the material names and disposition names in the solid waste file to the material and disposition names Peter Canepa uses.
-* fill the zero file in.
+
+----begin insertion of old code---
+
+
+# Status at this point in the analysis.
+
+I currently have two main data frames expressing the contents of solid waste -- disposal_tons_by_mrs_material, and recovery_tons_by_mrs_material.  I need to link them up, so they're in a single file, and then also make sure the materials and dispositions in the solid waste file have equivalents in terms of the impact factors I'm going to use.... without losing any tons.
+
+Let's just list the structures of those two solid waste files, list the material names, and then get the impact factors.
+
+## structure of the current SW files
 
 ```{r}
-# here is the mass profile
-baseline_mass_profile <- 
-  readRDS("../arr_scenarios_warm_factors/intermediate_output/baseline_mass_profile.RData")
-# here are all the combinations of year and wasteshed
-waste_stream_years_and_wastesheds <-
-  select(baseline_mass_profile, year, wasteshed) %>%
+str(disposal_tons_by_mrs_material)
+str(recovery_tons_by_mrs_material)
+```
+
+## list of all the material names in the solid waste data
+```{r}
+all_sw_data_temp <-
+  bind_rows(disposal_tons_by_mrs_material, recovery_tons_by_mrs_material)
+table(all_sw_data_temp$material, useNA="always")
+sum(table(all_sw_data_temp$material, useNA="always"))
+all_sw_data_materials_temp <- as.data.frame(unique(all_sw_data_temp$material))
+print(all_sw_data_materials_temp)
+rm(all_sw_data_temp, all_sw_data_materials_temp)
+```
+
+It looks like a few categories have been added... things like "Animal Waste/grease" weren't recorded in recovery but could be recovered?
+
+# Bringing in the impact factors.
+
+In this work I want to use DEQ's own impact factors, which I already imported. After that's done I need to confirm I can set an impact factor for every available combination of material and disposition.
+
+
+## Associating the recovery materials and disposition codes with impact factors.
+
+Now I'm going to tie the recovered materials and dispositions, which are in MRS terms, to material and disposition names and impact factors from the DEQ's set of impact factors.  Along the way I will correct some unlikely entries in the recovery data collection, such as tons of aluminum being composted.
+
+Both the name and disposition translations and the corrections will come from a crosswalk file in the source_data directory, "mrs_x_deq_xwalk.xlsx".
+
+```{r}
+# code to start making the crosswalk file (optional)
+junk1 <- 
+  recovery_tons_by_mrs_material %>%
+  select(material, swims_disposition_code) %>%
   unique()
-# here are all the combinations of material, LCstage, and disposition
-# in the impact factor file
-impact_factor_materials_LCstages_and_dispositions <-
-  impact_factors_deq %>%
-  select(material, LCstage, disposition) %>%
+junk2 <-
+  readRDS("intermediate_output/swims_disposition_types.RData")
+junk3 <-
+  full_join(junk1, junk2, by="swims_disposition_code") %>%
+  filter(!is.na(material)) %>%
+  rename(swims_disp=swims_disposition_short_desc) %>%
+  select(material, swims_disp) %>%
+  arrange(material, swims_disp)
+write.csv(
+  junk3,
+  "intermediate_output/observed_recovery_dispositions.csv",
+  row.names = FALSE
+)
+# let's get a similar list of combinations in the deq impact factors
+junk4 <-
+  impact_factors_deq %>% 
+  filter(LCstage=="endOfLife") %>%
+  select(material, disposition) %>%
   unique()
-# here is the zero file (all the combinations of year, wasteshed,
-# material, LCstage, and disposition), but with no tons attached
-zero_file <-
+write.csv(
+  junk4,
+  "intermediate_output/deq_eol_dispositions.csv",
+  row.names = FALSE
+)
+rm(junk1, junk2, junk3, junk4)
+
+```
+
+```{r}
+getwd()
+```
+
+
+```{r}
+# importing the crosswalk equivalencies for recovery and disposal...
+mrs_deq_xwalk <- 
+  read_excel(
+    path = "../../source_data/mrs_x_deq_xwalk.xlsx",
+    range = "a1:d100"
+  ) %>%
+  filter(!is.na(material) & !is.na(disposition))
+```
+
+
+```{r}
+# linking recovery data to warm names and dispositions..
+junk2 <-
+  readRDS("intermediate_output/swims_disposition_types.RData") %>%
+  select(swims_disposition_code, swims_disposition_short_desc) %>%
+  rename(swims_disp=swims_disposition_short_desc)
+
+recovery_tons_by_mrs_material2 <-
+  left_join(
+    recovery_tons_by_mrs_material,
+    junk2,
+    by="swims_disposition_code"
+  ) %>%
+  select(-swims_disposition_code) %>%
+  rename(swims_material=material)
+
+recovery_tons_temp_1 <-
+  left_join(
+    recovery_tons_by_mrs_material2,
+    mrs_deq_xwalk,
+    by = c("swims_material", "swims_disp")
+  ) %>%
+  filter(!is.na(material) & !is.na(disposition)) %>%
+  select(-swims_material, -swims_disp)
+rm(junk2, recovery_tons_by_mrs_material, recovery_tons_by_mrs_material2)
+```  
+
+Ok, at this point anything in recovery_tons_temp_1 is a recovered material that I have an impact factor for.  That doesn't mean it's the whole waste stream.
+
+I'm going to have to figure out which portion of the waste stream later.
+
+Now I need to do a similar process with disposal entries.  Those need to be spread across landfilling and combustion. 
+
+## spreading disposal tons over landfilling and combustion
+
+For the most part, disposal in Oregon is done via landfilling.  However, some waste does go to a single incinerator near Salem.  The incinerator takes a lot of Marion County's waste.   So I need to spread each wasteshed's disposal over two dispositions: landfilling and combustion.  
+
+To do this I need to dig into detailed disposal data records and pull out the shipments from individual wastesheds to individual disposal facilities.  Then I can calculate the proportion of disposal from each wasteshed that was incineration.
+
+```{r}
+# some constants I need
+year_of_interest <- c(2018)
+swims_access_filespec <- 
+  "//deqhq1/swrshare/!ADMINISTRATIVE-(ADM)/Databases/SWIMS/NewSWIMS/SWIMSprod.mdb"
+swims_wastesheds <- 
+  readRDS("intermediate_output/swims_wastesheds.RData")
+
+# starting by opening a connection to the access database
+swims_access_edition <- odbcConnectAccess(swims_access_filespec)
+
+# seeing if I've got a connection at all
+# myList <- sqlTables(channel = swims_access_edition)
+
+# getting all the disposal data, unfiltered
+disposal_detail_all <- sqlFetch(
+  channel = swims_access_edition,
+  sqtable = "martinDisposalDataAsOf20191125",
+  stringsAsFactors = FALSE
+)
+
+# closing the database connection and cleaning up
+odbcClose(swims_access_edition)
+rm(swims_access_edition, swims_access_filespec)
+```
+
+I need to wittle it down -- keeping only relevant fields and filtering out non-"counting" waste and out of state stuff.
+```{r}
+disposal_detail <- 
+  # keeping only relevant fields
+  select(
+    disposal_detail_all,
+    CID,
+    Year,
+    Matl,
+    Tons,
+    WS_Collection,
+    oos
+  ) %>%
+  filter(
+    Year == year_of_interest &  # isolating the year of interest
+      (Matl == "SW" |           # keeping only materials in counting waste
+       Matl == "CD" | 
+       Matl == "TIR" | 
+       Matl == "GY" | 
+       Matl == "AWG") &
+      oos == 0                  # picking only waste collected in-state
+  ) %>%
+  # using the incinerator's CID code to separate incineration from landfilling
+  mutate(
+    disposal_type = 
+      ifelse(
+        CID == 1077,
+        "combustion",
+        "landfilling"
+      )
+  )
+rm(disposal_detail_all)         # getting rid of that big object
+```
+
+
+Now I need to sum up incinerator vs non-incinerator tons for disposal for each wasteshed.   According to Spendelow, that's equivalent to isolating tons from CID code 1077 or not (as filtered above).
+
+```{r}
+# figuring total tons of combustion and landfilling per wasteshed
+disposal_by_wasteshed_and_type <-
+  summarise(
+    group_by(disposal_detail, Year, WS_Collection, disposal_type),
+    Tons = sum(Tons, na.rm = T)
+  ) %>% 
+  ungroup()
+# converting those to ratios
+disposal_by_wasteshed_and_type_wide <-
+  spread(
+    disposal_by_wasteshed_and_type,
+    key = disposal_type,
+    value = Tons
+  ) %>%
+  mutate(
+    landfill_ratio = 
+      ifelse(
+        is.na(combustion),
+        1,
+        landfilling/(combustion+landfilling)
+      ),
+    combustion_ratio = 1-landfill_ratio
+  )
+# flipping that back to a long skinny data frame
+disposal_by_wasteshed_and_type_skinny <-
+  gather(
+    select(
+      disposal_by_wasteshed_and_type_wide,
+      -combustion, -landfilling
+    ),
+    key = disposal_type,
+    value = proportion_of_tons,
+    landfill_ratio:combustion_ratio
+    ) %>%
+  arrange(Year, WS_Collection, disposal_type)
+```
+
+Ok, that object disposal_by_wasteshed_and_type_skinny has the ratios I need.
+
+Let's clean up the workspace a bit.
+
+```{r}
+# removing obsolete objects
+rm(disposal_by_wasteshed_and_type, disposal_by_wasteshed_and_type_wide,
+   disposal_detail)
+```
+
+Now, to apply those ratios to the materials in disposal.
+First I'll fix names.
+
+```{r}
+# fixing wasteshed codes and field names so the match 
+# will go smoother
+disposal_types_temp1 <- 
+  left_join(
+    rename(
+      disposal_by_wasteshed_and_type_skinny,
+      year = Year,
+      wasteshed_code = WS_Collection,
+      disposition = disposal_type
+    ),
+    swims_wastesheds,
+    by = "wasteshed_code"
+    ) %>%
+  mutate(
+    # wasteshed = 
+    #   ifelse(
+    #     wasteshed=="Milton Freewater",
+    #     "Milton-Freewater",
+    #     wasteshed
+    # ),
+    disposition = case_when(
+      disposition == "combustion_ratio"  ~ "combustion",
+      disposition == "landfill_ratio" ~ "landfilling"
+    )
+  ) %>%
+  select(year, wasteshed, disposition, proportion_of_tons)
+```
+
+Now I'll apply all the proportions to the existing disposed materials.  This will double the number of lines in the disposal file, but shouldn't change the total number of tons.
+
+```{r}
+disposal_tons_by_mrs_material_and_disposition_all <- 
   full_join(
-    mutate(waste_stream_years_and_wastesheds, dummy=1),
-    mutate(impact_factor_materials_LCstages_and_dispositions, dummy=1),
+    disposal_tons_by_mrs_material,
+    disposal_types_temp1,
+    by = c("year", "wasteshed")
+    ) %>%
+  rename(total_tons = tons) %>%
+  mutate(
+    tons = proportion_of_tons*total_tons
+  ) %>%
+  select(-total_tons, -proportion_of_tons) %>%
+  rename(swims_material=material, swims_disp=disposition)
+```
+
+Next I'm going to edit it, to restrict it to materials and dispositions for which we have impact factors.
+
+```{r}
+disposal_tons_by_mrs_material_and_disposition <-
+  left_join(
+    disposal_tons_by_mrs_material_and_disposition_all,
+    mrs_deq_xwalk,
+    by=c("swims_material", "swims_disp")
+  ) %>%
+  select(-swims_material, -swims_disp) %>%
+  filter(!is.na(material) & !is.na(disposition))
+```
+
+Ok, now I've got disposal tons with detailed dispositions by wasteshed, in object disposal_tons_by_mrs_material_and_disposition. 
+
+Might be a good idea to save the proportions of disposal by wasteshed for future sessions.
+```{r}
+# saving proportions of disposal per wasteshed.
+saveRDS(
+  disposal_types_temp1,
+  file = "intermediate_output/disposal_disposition_proportions_by_wasteshed.RData"
+)
+```
+
+Let's clean up the workspace.
+
+```{r}
+rm(disposal_by_wasteshed_and_type_skinny, disposal_tons_by_mrs_material,
+   disposal_types_temp1, disposal_tons_by_mrs_material_and_disposition_all)
+```
+
+## A bit of perspective
+
+So now I have two files with end-of-life information in them which should have DEQ impact factors.
+
+If I add the disposal_tons in disposal_tons_by_mrs_material_and_disposition to the recovery information in recovery_tons_temp1, I will have a complete picture of the solid waste stream IN TERMS OF THE MATERIALS FOR WHICH I POSSESS IMPACT FACTORS. 
+
+Sometime (not in the current session) I need to quantify how much is being left behind.  And decide how I'm going to treat that stuff... by ignoring it, or using estimated impact factors?
+
+But anyway, later.
+
+## Creating the baseline mass profile, with a zero file.
+
+I would like the baseline mass profile to include entries for all the possible dispositions as well as all the utilized dispositions.  So let's do that.
+
+```{r}
+bmp1 <- 
+  bind_rows(
+    disposal_tons_by_mrs_material_and_disposition %>%
+      mutate(umbDisp="disposal"),
+    recovery_tons_temp_1 %>% mutate(umbDisp="recovery")
+  )
+bmp_material_list <-
+  bmp1 %>% select(material) %>% unique()
+bmp_possible_dispositions <-
+  right_join(
+    impact_factors_deq %>% 
+      filter(LCstage=="endOfLife") %>%
+      select(material, disposition) %>%
+      unique(),
+    bmp_material_list,
+    by="material"
+  )
+bmp_ws_list <- 
+  bmp1 %>% select(year,wasteshed) %>% unique()
+bmp_possible_ws_material_disposition_combos <-
+  full_join(
+    bmp_ws_list %>% mutate(dummy=1),
+    bmp_possible_dispositions %>% mutate(dummy=1),
     by="dummy"
   ) %>%
   select(-dummy)
-# now correcting the MRS and WARM based names in the solid waste data
-# to Canepa-standard names
-# loading in a crosswalk table
-deq_x_mrs_x_warm <- 
-  read_excel("../../source_data/deq_x_mrs_x_warm.xlsx")
-# joining the crosswalk together
-baseline_mass_profile_corrected <-
+bmp2 <- 
   full_join(
-    rename(
-      baseline_mass_profile,
-      mrs_material=material,
-      mrs_disposition=disposition
-    ) %>% 
-    mutate(inMRS=TRUE),
-    mutate(
-      deq_x_mrs_x_warm,
-      inImpactFactors=TRUE
-    ),
-    by=c("mrs_material", "mrs_disposition")
-  )
-# separating four mass-related files for later examination
-# materials and dispositions that match up well
-baseline_masses_ok <- 
-  filter(
-    baseline_mass_profile_corrected,
-    inMRS==TRUE & inImpactFactors==TRUE
-  ) %>%
-  select(
-    year, wasteshed, material, disposition, umbDisp, tons
-  )
-# materials and dispositions that are only in the waste stream file
-baseline_masses_unmatched <-
-  filter(
-    baseline_mass_profile_corrected,
-    inMRS==TRUE & is.na(inImpactFactors)
-  )
-# those same unmatched materials and dispositions, but 
-# as unique combos
-baseline_unmatched_materials_and_dispositions <-
-  baseline_masses_unmatched %>%
-  select(mrs_material, mrs_disposition, umbDisp) %>%
-  unique() %>%
-  arrange(mrs_material, mrs_disposition)
-# materials and dispositions that are only in the impact factor file
-baseline_masses_unrepresented <-
-  filter(
-    baseline_mass_profile_corrected,
-    is.na(inMRS) & inImpactFactors==TRUE
-  )
-# combining the zero file and the matched materials and dispositions
-baseline_mass_profile_better <-
-  full_join(
-    zero_file,
-    baseline_masses_ok,
+    bmp_possible_ws_material_disposition_combos,
+    bmp1,
     by=c("year", "wasteshed", "material", "disposition")
   ) %>%
-  mutate(tons=ifelse(is.na(tons),0,tons)) # fills in missing zeros
+  mutate(
+    # fill in missing values
+    tons=ifelse(is.na(tons),0,tons),
+    umbDisp=ifelse(
+      is.na(umbDisp),
+      case_when(
+        disposition=="recycling" ~ "recovery",
+        disposition=="anaerobicDigestion" ~ "recovery",
+        disposition=="recyclingPozzolan" ~ "recovery",
+        disposition=="recyclingToFiberglass" ~ "recovery",
+        disposition=="reuseContainer" ~ "recovery",
+        disposition=="useAsAggregate" ~ "recovery",
+        disposition=="composting" ~ "recovery"
+      ),
+      umbDisp
+    )
+  )
+
 ```
-
-Eventually, the lists of unmatched and unrepresented masses should dwindle to zero.
-
-Now, in concept, every tonnage in baseline_mass_profile_better should be matched with an impact factor from impact_factors_deq.  Let's try it!
+So bmp2 is the baseline mass profile.  Let me save it properly,  save the mass profile and the impact factors to external files, and double check that every entry has impact factors.
 
 ```{r}
-myTest <-
-  left_join(
-    baseline_mass_profile_better,
-    impact_factors_deq,
-    by=c("material", "LCstage", "disposition")
-  ) %>%
-  arrange(impactCategory, year, wasteshed, material, LCstage, disposition)
-myTest2 <-
-  filter(myTest, is.na(impactFactor) | is.na(impliedMiles))
-```
-
-Looks like myTest2 has zero records in it.
-
-So to clean up, I need to save both the impact factors and the improved baseline data for later use.  Then erase the rest of the objects.
-
-```{r}
-# saving impact factors
+# saving
+baseline_mass_profile <- bmp2
 saveRDS(
-  impact_factors_deq, 
-  "intermediate_output/impact_factors_deq.RData"
-  )
-write.csv(
-  impact_factors_deq, 
-  "intermediate_output/impact_factors_deq.csv",
-  row.names = F
-  )
-# savings baseline data that has been matched to impact factors
-saveRDS(
-  baseline_mass_profile_better,
-  "intermediate_output/baseline_mass_profile_deq.RData"
+  baseline_mass_profile, "intermediate_output/baseline_mass_profile.RData"
 )
 write.csv(
-  baseline_mass_profile_better,
-  "intermediate_output/baseline_mass_profile_deq.csv",
-  row.names = F
+  baseline_mass_profile,
+  "intermediate_output/baseline_mass_profile.csv",
+  row.names = FALSE
 )
+saveRDS(
+  impact_factors_deq, "intermediate_output/impact_factors.RData"
+)
+write.csv(
+  impact_factors_deq,
+  "intermediate_output/impact_factors.csv",
+  row.names=FALSE
+)
+# checking for synchrony
+bmp_test<- left_join(
+  baseline_mass_profile,
+  impact_factors_deq,
+  by=c("material", "disposition")
+) %>% filter(is.na(impactFactor))
 ```
 
-Erasing all objects
+if bmp_test has 0 records, that means all the masses have impact factors.
+
+however, we don't know if all the masses are included.  That's a place I will need to improve this code.
+
 ```{r}
+# cleaning the space
 rm(list=ls())
 ```

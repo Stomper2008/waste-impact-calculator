@@ -1,0 +1,823 @@
+---
+title: "Importing and standardizing waste data"
+output: html_notebook
+---
+
+by Martin Brown, Martin.Brown@state.or.us
+
+In this R markdown document I want to import Oregon's solid waste data (both disposal and recovery info) for use in the Waste Impact Calculator (WIC)
+
+In particular, the goal is to create a "baseline mass profile" that associates a tonnage with each combination of year, wasteshed, material, and end-of-life disposition.  Material names will need to be standardized between the disposal and the recovery information.
+
+This particular version of this code does not align materials with impact factors.  That's because the WIC needs to be set up to use multiple sets of impact factors.  Each set of impact factors will need its own code to align the names and the impact factors.
+
+## Technical note!
+Some of the following import uses package RODBC, which means 32-bit, rather than 64-bit, R is required.  I would like to change this in the future, but I'm not going to do it right now.
+
+## Setting up the workspace
+
+First, a kind of version control on the packages.  The "checkpoint" command should save and use packages associated with a certain date.  (skipping for now)
+```{r}
+# some package version control for this project
+#library(checkpoint)
+#checkpoint("2018-09-30")
+```
+These are the packages I feel I'll use.
+
+```{r}
+# loading packages I might use
+library(tidyverse)
+library(openxlsx)
+library(readxl)
+library(scales)
+library(RODBC)
+library(knitr)
+library(rmarkdown)
+```
+
+I will need to limit this analysis to certain time frames... most results will be reported for one calendar year at a time.  But I would like to be able to do >1 year at a time if necessary.  
+
+Eventually I will need to set up "year_of_interest" as a vector.  I need to remember to use the %in% selector rather than the == selector, and keep year as an indentifying variable.
+
+```{r}
+# setting a few constants
+year_of_interest <- c(2018)
+swims_access_filespec <- 
+  "//deqhq1/swrshare/!ADMINISTRATIVE-(ADM)/Databases/SWIMS/NewSWIMS/SWIMSprod.mdb"
+
+```
+
+## Getting recovery tonnages from MRS
+
+Within Oregon DEQ, recovery information comes from the SWIMS database.  The most convenient place to get that data is from Peter Spendelow's Access views of SWIMS (which currently requires the use of 32-bit versions of R) -- because Peter has added certain information I wouldn't be able to directly get from SWIMS.
+```{r}
+# importing recovery masses from SWIMS, unfiltered -- this is 
+# basically all the recovery data available.
+
+# starting by opening a connection to the access database
+swims_access_edition <- odbcConnectAccess(swims_access_filespec)
+
+# getting all the recovery data, unfiltered
+recovery_info_all_years_raw <- sqlFetch(
+  channel = swims_access_edition,
+  sqtable = "dbo_rrcDisposition",   # data for year currently being edited in SWIMS
+#  sqtable = "Disposition_All",   # data for all finalized years 
+  stringsAsFactors = FALSE
+) %>%
+# changing some of the imported names so they match my fields better
+rename(
+#  year = Yr,     # don't run if using current-year in SWIMS
+  wasteshed_code = fkWasteshedCd,
+  swims_disposition_code = fkDispositionCd,
+  swims_material_code = fkMaterialTypeCd,
+  collection_method = fkCollectionMethodCd,
+  tons_recovered = RecoveredQty,
+  tons_collected = CollectedQty,
+  wasteshed_pop_from_mrs = WasteshedPopQty
+) %>%                   
+mutate(                # only run this part 
+  year=year_of_interest  # if using curent year in SWIMS
+)                    #
+# seeing what it looks like
+str(recovery_info_all_years_raw)
+head(recovery_info_all_years_raw)
+
+# closing the database connection and cleaning up
+odbcClose(swims_access_edition)
+rm(swims_access_edition)
+```
+
+To interpret the unfiltered recovery data, I need to know what some of those codes mean.  So I'm going to import three lookup tables DIRECTLY from SWIMS, describing wasteshed codes, disposition types (a bit different in SWIMS than in WARM - this will be squared up later), and materials codes.
+```{r}
+# connection to SWIMScon, which is an ODBC connection defined
+# in my Windows setup
+SWIMScon <- odbcConnect("swimsForR") 
+
+# testing the connection...
+# listOfSwimsTables <- sqlTables(SWIMScon)
+
+# importing the three lookup tables
+swims_wastesheds <- 
+  sqlFetch(
+    channel=SWIMScon,
+    sqtable = "Wasteshed",
+    stringsAsFactors=FALSE
+  ) %>% 
+  rename(wasteshed_code = Code, wasteshed = Name)
+swims_disposition_types <- 
+  sqlFetch(
+    channel=SWIMScon,
+    sqtable="DispositionType",
+    stringsAsFactors=FALSE
+  ) %>%
+  rename(
+    swims_disposition_code = Code,
+    swims_disposition_short_desc = Name,
+    swims_disposition_long_desc = Description,
+    swims_disposition_recovery_flag = RecoveryMethodFlag
+  )
+swims_material_types <- 
+  sqlFetch(
+    channel=SWIMScon,
+    sqtable="MaterialType",
+    stringsAsFactors=FALSE
+  ) %>%
+  rename(
+    swims_material_code = Code,
+    material = Name,
+    swims_material_description = Description
+  ) %>%
+  # here I am correcting for a mismatched food name spelling between
+  # SWIMS and my other tables
+  mutate(                                      
+    material = ifelse(                         
+      material == "Food Waste",         
+      "FoodWaste",                      
+      material                          
+    )                                   
+  )                                     
+# this next one is commented out because I don't think I need it
+# swimsCollectionMethod <- 
+#   sqlFetch(
+#     channel = SWIMScon,
+#     sqtable = "CollectionMethod",
+#     stringsAsFactors = FALSE
+#     )
+# closing the database connection
+odbcClose(SWIMScon)
+# seeing if the lookup tables look right
+str(swims_wastesheds)
+print(swims_wastesheds)
+str(swims_disposition_types)
+print(swims_disposition_types)
+str(swims_material_types)
+print(swims_material_types)
+# print(swimsCollectionMethod)
+# removing some object no longer needed
+rm(SWIMScon)
+```
+
+Now I'm going to limit the recovery information in several ways.  I want only the year(s) of interest.  I don't want "out of state" shipments or dispositions that were not recovery.  I also need to fix an issue with some wasteshed codes that have extra whitespace.
+
+```{r}
+# filtering the comprehensive recovery information
+recovery_tons_from_mrs_all <-
+  filter(
+    recovery_info_all_years_raw,
+    year %in% year_of_interest,       #limits to year of interest 
+    wasteshed_code != "OOS" &    # eliminates out of state activity
+    swims_disposition_code != "X"&     # not recovery
+    swims_disposition_code != "U" &    # not recovery
+    swims_disposition_code != "D" &    # not recovery
+    swims_material_code != "SW"        # you can't "recover" a generic mix of
+                                       # solid waste.. needs to be a specific
+                                       # material
+  ) %>%
+  select(-collection_method, -tons_collected, -wasteshed_pop_from_mrs)  %>%
+  arrange(swims_material_code, swims_disposition_code)  %>%
+  select(year, wasteshed_code, swims_material_code, swims_disposition_code,
+         tons_recovered) %>%
+  rename(tons = tons_recovered) %>%
+  mutate(wasteshed_code = str_trim(wasteshed_code))
+# summarising the recovery information into one record per 
+# year, wasteshed, material, and disposition
+recovery_tons_by_mrs_material_temp1 <- 
+  summarise(
+    group_by(recovery_tons_from_mrs_all,
+             year,
+             wasteshed_code,
+             swims_material_code,
+             swims_disposition_code
+    ),
+    tons = sum(tons,na.rm=TRUE)
+  ) %>%
+  ungroup()
+# the result should look like this..
+# # A tibble: 6 x 5
+#    year wasteshed_code swims_material_code swims_disposition_code    tons
+#   <int> <chr>          <chr>               <chr>                    <dbl>
+# 1  2016 BA             AL                  R                       57.8  
+# 2  2016 BA             ATF                 R                        0.418
+# 3  2016 BA             AWG                 R                      144.   
+# 4  2016 BA             CP                  R                        1.4  
+# 5  2016 BA             EL                  R                       96.7  
+# 6  2016 BA             FIB                 R                      263.
+```
+
+So object recovery_tons_by_mrs_material_temp1 has what was recovered in the year of interest, by wasteshed, with the most detailed disposition codes we have.  
+
+I've added "temp1" to the name because it needs to be fixed up a bit.  It uses SWIMS codes for wastesheds, materials, and dispositions, and that's just awkward. Let me establish some more intuitive entries for at least some of those things.  
+
+But I think I'm going to leave the SWIMS disposition codes unaltered right now because those will have different equivalencies further on in this analysis, depending on which set of impact factors will be used.
+
+```{r}
+# replacing material codes with MRS material names
+recovery_tons_by_mrs_material_temp2 <- 
+  left_join(
+    recovery_tons_by_mrs_material_temp1,
+    select(swims_material_types, swims_material_code, material),
+    by = "swims_material_code"
+  ) 
+# replacing wasteshed codes with wasteshed names
+recovery_tons_by_mrs_material_temp3 <- 
+  left_join(
+    recovery_tons_by_mrs_material_temp2,
+    swims_wastesheds,
+    by = "wasteshed_code"
+  )
+# winnowing the fields
+recovery_tons_by_mrs_material <-
+  select(
+    recovery_tons_by_mrs_material_temp3, 
+    year, wasteshed, material, swims_disposition_code, tons
+  ) %>%
+  arrange(year, wasteshed, material, swims_disposition_code) %>%
+  # filtering out a few oddball observations where recovery was <=0
+  filter(tons > 0)
+```
+
+Cleaning up the workspace.
+```{r}
+rm(recovery_info_all_years_raw, recovery_tons_by_mrs_material_temp1,
+   recovery_tons_by_mrs_material_temp2, recovery_tons_by_mrs_material_temp3,
+   recovery_tons_from_mrs_all
+)
+```
+
+So recovery_tons_by_mrs_material is the recovery data.  It has tons of recovery for every combination of year, wasteshed, material, and disposition.  
+
+For the purpose of checking against Michelle Shepperd's official reports, I'm going to print out the sum of recovered materials in several ways.
+```{r}
+# total recovered for Oregon
+print(
+  paste(
+    "the total recovered for Oregon in ",
+    year_of_interest,
+    " is ",
+    round(sum(recovery_tons_by_mrs_material$tons)), 
+    " short tons."
+  )
+)
+# total by material
+print(
+  summarise(
+    group_by(
+      recovery_tons_by_mrs_material,
+      material
+    ),
+    tons = sum(tons, na.rm=T)
+  )
+)
+# total by wasteshed
+print(
+  summarise(
+    group_by(
+      recovery_tons_by_mrs_material,
+      wasteshed
+    ),
+    tons= sum(tons, na.rm=T)
+  )
+)
+```
+
+I see that the totals are very very slightly different from Michelle's totals. E.g.  the total recovered is (at this run, fall 2019) 2303963, whereas Michelle's report has the sum as 2304410.  My total is 0.9999 of Michelle's.  
+
+I'm going to live with that difference and work it out later.  May have to do with the burner in Marion County, or other "manual" corrections Michelle and Peter S. do.
+
+# Getting disposal totals from the SWIMS database.
+## Trying to import spendelow's file.
+
+... work work work...
+
+Ok, here's what happened.  
+
+* First, I tried to use Peter S's query "Dispose_All2" as the input, but there was an sqlFetch error (undefined function in Select).
+* Second, when I went into Access and converted the current results of "Dispose_ALL2" into an Access table (via a "make-table query"), it read that table... which is currently called "martinDisposalDataAsOf20191125".
+
+So I have the data but it's not really in a reproducible format.  If disposal data changed I would have to re-run that make-table query.
+
+Anyway, let's just move on.
+
+
+```{r}
+# starting by opening a connection to the access database
+swims_access_edition <- odbcConnectAccess(swims_access_filespec)
+
+# testing if I've got a connection at all
+# myList <- sqlTables(channel = swims_access_edition)
+# print(myList)
+# rm(myList)
+
+# getting all the disposal data, unfiltered
+disposal_info <- sqlFetch(
+  channel = swims_access_edition,
+  sqtable = "martinDisposalDataAsOf20191125",
+  stringsAsFactors = FALSE
+)
+
+# closing the database connection and cleaning up
+odbcClose(swims_access_edition)
+rm(swims_access_edition)
+```
+
+
+```{r}
+# looking at the structure of the import
+str(disposal_info)
+```
+
+## Filtering and summarising
+I'm going to keep only fields that Spendelow mentioned in his email to me.
+```{r}
+disposal_info_2 <- 
+  select(
+    disposal_info,
+    CID,
+    Year,
+    Matl,
+    Tons,
+    WS_Collection,
+    oos
+  )
+```
+
+Now let's filter FOR counting waste and AGAINST out-of-state waste, which should get me pretty close to what is in the Material Recovery report.
+
+```{r}
+disposal_info_3 <-
+  filter(
+    disposal_info_2,
+    Year == year_of_interest &        # picking a year
+      (Matl == "SW" |     # here are the generic materials in counting waste
+       Matl == "CD" | 
+       Matl == "TIR" | 
+       Matl == "GY" | 
+       Matl == "AWG") &
+      oos == 0            # picking only waste collected in-state
+  )
+```
+
+Now let's create a disposal sum for each wasteshed.
+
+```{r}
+# adding disposal numbers for each wasteshed
+disposal_info_4 <- 
+  summarise(
+    group_by(disposal_info_3, Year, WS_Collection),
+    Tons = sum(Tons, na.rm = T)
+  ) %>%
+  rename(
+    wasteshed_code = WS_Collection,
+    year = Year,
+    tons = Tons
+  )
+# changing wasteshed code to wasteshed name
+disposal_info_5 <-
+  left_join(
+    disposal_info_4,
+    swims_wastesheds,
+    by = "wasteshed_code"
+  ) %>%
+  select(year, wasteshed, tons)
+```
+
+Once again I'm going to print out some totals to check agains Michelle's report, this time for disposal.
+
+```{r}
+# total disposed for whole state
+print(
+  paste(
+    "The statewide sum of disposal from this data source is ",
+    comma(round(sum(disposal_info_5$tons))),
+    " tons.",
+    sep=""
+  )
+)
+# total disposed by wasteshed
+print(
+  summarise(
+    group_by(
+      disposal_info_5,
+      wasteshed
+    ),
+    tons = sum(tons, na.rm=T)
+  )
+)
+```
+Once again the total is a little off.  At this time, the total from this code is 3,280,141  tons, whereas Michelle's report is less... 3,257,155
+.  The difference is 22,986 tons.
+
+Meanwhile the individual wastesheds look very close, and Marion county is off by  22,416 tons... very close..  So it has something to do with Marion county and its incinerator.  Somehow Michelle is counting incinerated stuff as recovery.
+
+I will fix that later.  It may not matter for a statewide analysis. And let's clean up.
+
+```{r}
+disposal_total_by_wasteshed <- disposal_info_5
+rm(disposal_info, disposal_info_2, disposal_info_3, disposal_info_4,
+   disposal_info_5)
+```
+
+The disposal totals are disposal_total_by_wasteshed .
+
+
+## Estimating disposed tons of MRS materials for each wasteshed
+
+To estimate the disposed tons of materials with MRS names, I need to get the sampling results from the 2016 Waste Composition Study and then multiply them by the disposal total for each wasteshed.  I will also need to match the WCS names to the MRS names.
+
+Importing the Waste Composition Study results..
+```{r}
+# input: a XLSX file provided by Peter Spendelow.  There is no need for
+# a live feed because Spendelow says these results will not change.
+
+# output: an R data frame with waste composition results in proportions,
+# and confidence limits supplied by Spendelow.
+
+# getting Peter Spendelow's Waste Composition results for 2016-17
+disposal_proportions_source_filespec <- 
+  "../../source_data/waste_composition_results.xlsx"
+disposal_proportions_raw_all <- 
+  read_xlsx(
+   disposal_proportions_source_filespec, 
+   sheet = "LongMatlNames",
+   skip = 1
+  )
+   
+# seeing what I've got
+str(disposal_proportions_raw_all)
+
+# should look something like this..
+# > str(disposal_proportions_raw_all)
+# Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	100 obs. of  12 variables:
+#    $ Group    : chr  "F16TOT" "F16TOT" "F16TOT" "F16TOT" ...
+# $ GroupDef : chr  "All Oregon - All Substreams" "All Oregon - All Substreams" "All Oregon - All Substreams" "All Oregon - All Substreams" ...
+# $ TotalTons: num  3067297 3067297 3067297 3067297 3067297 ...
+# $ EOrd     : num  1 2 3 4 5 6 7 8 9 10 ...
+# $ Matname  : chr  "Gable top (milk) cartons" "Aseptic drink boxes" "Wine boxes" "Cardboard/Brown Bags" ...
+# $ AvgSWt   : num  4.97e-04 4.05e-04 4.61e-05 3.49e-02 2.76e-03 ...
+# $ SWtN50   : num  4.06e-04 3.35e-04 1.82e-05 3.22e-02 1.76e-03 ...
+# $ SWtN952  : num  5.92e-04 4.85e-04 7.85e-05 3.77e-02 3.93e-03 ...
+# $ DetSWt   : num  3.89e-04 2.91e-04 4.33e-05 2.57e-02 2.11e-03 ...
+# $ DetN50   : num  3.04e-04 2.15e-04 1.71e-05 2.27e-02 1.18e-03 ...
+# $ DetN952  : num  4.84e-04 3.77e-04 7.37e-05 2.94e-02 3.37e-03 ...
+# $ DryTons  : num  1193 892 133 78958 6469 ...
+
+# Now Spendelow's sampling results are actually a collection of lots 
+# of different sets of results at different levels of detail. 
+# FYI You need to choose a "Group" for the results to be meaningful.
+# If you don't choose a "Group" the proportions will add up to >>100%.
+
+# displaying the variety of available groups...
+table(
+  disposal_proportions_raw_all$GroupDef,
+  disposal_proportions_raw_all$Group
+)
+
+# which should look like this...
+# 
+#                                    F16DWN F16LAN F16MAR F16MET F16RST
+# All Oregon - All Substreams             0      0      0      0      0
+# DownState - All but Metro             139      0      0      0      0
+# Lane - All Substreams                   0    139      0      0      0
+# Marion - All substreams                 0      0    139      0      0
+# Metro - All substreams                  0      0      0    139      0
+# Rest of Oregon - not MET, MAR, LAN      0      0      0      0    139
+# 
+#                                    F16TOT
+# All Oregon - All Substreams           139
+# DownState - All but Metro               0
+# Lane - All Substreams                   0
+# Marion - All substreams                 0
+# Metro - All substreams                  0
+# Rest of Oregon - not MET, MAR, LAN      0
+
+# Here are Peter's fields.
+# Group :  the results group.  when applying these results, you need
+# to choose which group to apply.
+# GroupDef :  text description of the Group
+# TotalTons :  the number of tons TOTAL represented by the Group.  
+# Note this only applies to the year of the WCS itself.
+# EOrd : numeric ID code for an individual material
+# MatNameFull :  name of individual material
+# AvgSWt : estimated proportion of disposed material. 
+# ("uncorrected"... i.e. includes water & fines)
+# SWtN50 : 5% (lower) confidence limit via bootstrapping for AvgSWt
+# SWt952 : 95% (upper) confidence limit via bootstrapping for AvgSWt
+# DetSWt : estimated proportion of disposed material. 
+# ("corrected" version)
+# DetN50 : 5% (lower) confidence limit via bootstrapping for DetSWt
+# DetN952 : 95% (upper) confidence limit via bootstrapping for DetSWt
+# DryTons : Not sure.  I may ignore this.
+
+# let's clean up that object a little bit.
+disposal_proportions_all <-
+   select(disposal_proportions_raw_all, -EOrd, -DryTons)
+
+# object disposal_proportions_all has the WCS results
+
+# cleaning up temp objects
+rm(disposal_proportions_raw_all, disposal_proportions_source_filespec)
+```
+
+There are 6 different versions of the waste composition proportions (labeled with Peter S's fields "Group" and "GroupDef").  I need to associate each wasteshed with one of those versions.  I have created a crosswalk linking wasteshed to WCS group and will work it in to the wasteshed list here..
+
+```{r}
+# importing crosswalk of wastesheds and WCS samples
+wasteshed_wcs_xwalk_temp <- 
+  read_excel(
+    path = "../../source_data/waste_composition_sample_assignments.xlsx",
+    range = "a3:g38",
+    col_names = T
+  )
+wasteshed_wcs_choice <-
+  gather(
+    wasteshed_wcs_xwalk_temp,
+    key = wcs_group,
+    value = use_this_group_flag,
+    F16DWN:F16TOT
+  ) %>%
+  filter(use_this_group_flag == 1) %>%
+  select(-use_this_group_flag) %>%
+  arrange(wasteshed)
+rm(wasteshed_wcs_xwalk_temp)
+```
+
+Object wasteshed_wcs_choice identifies which WCS sample to use for each wasteshed.  Now I've got to apply the correct WCS sample to the correct total disposal for each wasteshed.  I will make a gigantic list of all the possible combinations then wittle it down.
+
+```{r}
+# creating all the possibilities of wasteshed and sample
+# (via a temporary dummy variable dummy_1)
+disposal_proportions_by_wasteshed <-
+  full_join(
+    data.frame(
+      wasteshed_wcs_choice,  
+      dummy_1 = 1
+    ),
+    data.frame(
+      select(disposal_proportions_all, Group, MatNameFull, AvgSWt),
+      dummy_1 = 1
+    ),
+    by = "dummy_1"
+  ) %>%
+  select(-dummy_1) %>%
+  # selecting only the matching wcs sample groups
+  filter(wcs_group == Group) %>%
+  # eliminating those group fields
+  select(-wcs_group, -Group)
+```
+
+Next I need to associate the total disposed tons with those proportions. Material names will be WCS names -- to be fixed anon.
+
+```{r}
+# adding total disposed for each wasteshed
+disposal_weights_in_wcs_categories <-
+  full_join(
+    disposal_proportions_by_wasteshed,
+    rename(disposal_total_by_wasteshed, total_tons = tons),
+    by = "wasteshed"
+  ) %>%
+  # multiplying total disposed by proportion to get tons 
+  # disposed per WCS material
+  mutate(tons = total_tons * AvgSWt)
+```
+
+Now I should check that the total disposed is still the same, between this new detailed file and the total file.
+
+```{r}
+print(
+  paste(
+    "The sum of disposal weights from the simple total file is ",
+    comma(round(sum(disposal_total_by_wasteshed$tons))),
+    " while the sum of disposal weights from the detailed composition file is ",
+    comma(round(sum(disposal_weights_in_wcs_categories$tons,na.rm=TRUE))),
+    ".",
+    sep=""
+  )
+)
+```
+
+Currently the difference is small. I'm moving on for now and will fix it later.
+
+Now the 139 WCS material categories must be converted to the smaller number of MRS material categories.   In order to do that I need to align the disposed materials with the MRS category names.
+
+```{r}
+# name of the WCS to MRS crosswalk file
+wcs_mrs_xwalk_filespec <- 
+  "../../source_data/crosswalk_wcs_mrs_names_with_plausibles.xlsx"
+
+# reading in the crosswalk file
+wcs_mrs_xwalk_raw <- 
+  read_xlsx(
+    wcs_mrs_xwalk_filespec,
+    sheet = "crosswalk and pathways",
+    skip=13,
+    col_types = c("text","text",rep("logical",5),"skip")
+  ) %>%
+  # creating a filed that represents any form of recovery
+  mutate(AnyRecovery = as.logical(Recycling | Composting | AD | Combustion))
+
+# limiting crosswalks to plausible dispositions (e.g. you can compost 
+# wood, but you can't compost steel)
+wcs_mrs_xwalk_all_plausibles <- 
+  gather(
+    wcs_mrs_xwalk_raw,
+    key="disposition",
+    value="plausible",
+    Landfilling:AnyRecovery
+  ) %>%
+  filter(plausible == TRUE) %>%
+  arrange(mrsMaterialName, wcsMaterialName)
+
+# this data frame (wcs_mrs_xwalk_all_plausibles) is useful, but very detailed, 
+# in that it has all the possible dispositions attached.  
+# i will need this list of plausibles later, for the "recover everything
+# possible" scenario.  
+
+# but for the time being, i just need to crosswalk the material names. 
+wcs_mrs_xwalk_simple <-
+  unique(
+    select(wcs_mrs_xwalk_all_plausibles, mrsMaterialName, wcsMaterialName)
+  )
+# i need to record a few instances when there were more MRS categories
+# than WCS in the matchups
+wcs_mrs_one_to_many <-
+  summarise(
+    group_by(wcs_mrs_xwalk_simple, wcsMaterialName),
+    mrs_to_wcs_count = n()
+    )
+# by combining the crosswalk with the disposal tons I can write the 
+# MRS material names
+disposal_tons_by_mrs_material_junk_1 <-
+  left_join(
+    rename(
+      disposal_weights_in_wcs_categories,
+      wcsMaterialName = MatNameFull
+    ),
+    wcs_mrs_xwalk_simple,
+    by = "wcsMaterialName"
+  )
+# now I need to add a different variable to account for the odd occasions
+# when there were more than 1 MRS category for a single WCS category.
+# when there was >1 MRS per WCS, I need to divide the tonnage
+disposal_tons_by_mrs_material_junk_2 <-
+  left_join(
+    disposal_tons_by_mrs_material_junk_1,
+    wcs_mrs_one_to_many,
+    by = "wcsMaterialName"
+    ) %>%
+  mutate(
+    tons = tons/mrs_to_wcs_count 
+  )
+
+disposal_tons_by_mrs_material <-
+  summarise(
+    group_by(
+      disposal_tons_by_mrs_material_junk_2, 
+      wasteshed, mrsMaterialName
+    ),
+    tons = sum(tons, na.rm=T),
+    year = year_of_interest
+    ) %>%
+  rename(material = mrsMaterialName) %>%
+  ungroup() %>%
+  filter(material != "") %>%
+  arrange(year, wasteshed, material) %>%
+  select(year, wasteshed, material, tons)
+
+```
+
+Now let's run some sums to see if the disposal in terms of MRS materials are the same as the original disposal totals.
+
+```{r}
+print(
+  paste(
+    "The disposal tonnage based on MRS material names is ",
+    comma(round(sum(disposal_tons_by_mrs_material$tons))),
+    " while the disposal tonnage from the wasteshed totals is ",
+    comma(round(sum(disposal_total_by_wasteshed$tons))),
+    ".",
+    sep=""
+  )
+)
+```
+
+That's a very small difference.  So I don't think I've dropped anything.  The tiny differences remaining are probably a result of rounding in the WCS percentages.  It's possible for me to move on right now and fix that later.
+
+So disposal_tons_by_mrs_material has what I need to go into the baseline mass profile.
+
+But for generating the "recoverMax" scenario (in another R Markdown file for this project) I am going to need disposal tons by the WCS materials.  So I'm going to create and save a potentially useful data frame right now.
+
+```{r}
+# version of the plausibles file that is just about any recovery method
+junk_1 <- filter(wcs_mrs_xwalk_all_plausibles, disposition == "AnyRecovery")
+# combining that with disposal tons
+junk_2 <-
+  left_join(
+    select(
+      disposal_tons_by_mrs_material_junk_2, 
+      -total_tons
+    ),
+    junk_1,
+    by = c("mrsMaterialName", "wcsMaterialName")
+  ) %>%
+  # marking non-recoverable materials
+  mutate(
+    plausible = ifelse(is.na(plausible), FALSE, plausible)
+  )
+# getting the proportion of tons by MRS material that are
+# recoverable
+junk_3 <-
+  summarise(
+    group_by(junk_2, year, mrsMaterialName, plausible),
+    tons = sum(tons, na.rm=T)
+  )
+# flipping to make it a ratio
+junk_4 <-
+  spread(
+    junk_3,
+    key = plausible,
+    value = tons
+  ) %>%
+  rename(
+    disposal_only_tons = `FALSE`,
+    recoverable_tons = `TRUE`
+  ) %>%
+  mutate(
+    disposal_only_tons = 
+      ifelse(is.na(disposal_only_tons), 0, disposal_only_tons),
+    recoverable_tons =
+      ifelse(is.na(recoverable_tons), 0, recoverable_tons),
+    all_tons = disposal_only_tons + recoverable_tons,
+    pct_recoverable = recoverable_tons/all_tons
+  )
+# saving a simplified pct_recoverable file
+pct_recoverable_by_mrs_material <-
+  filter(junk_4, !is.na(mrsMaterialName)) %>%
+  select(year, mrsMaterialName, pct_recoverable)
+saveRDS(
+  pct_recoverable_by_mrs_material,
+  "intermediate_output/pct_recoverable_by_mrs_material.RData"
+)
+```
+
+
+Here I will remove some temporary objects.
+
+```{r}
+# removing temporary objects
+rm(disposal_proportions_all, disposal_proportions_by_wasteshed,
+   disposal_tons_by_mrs_material_junk_1, disposal_tons_by_mrs_material_junk_2,
+   disposal_total_by_wasteshed, disposal_weights_in_wcs_categories, wasteshed_wcs_choice,
+   wcs_mrs_one_to_many,
+   wcs_mrs_xwalk_raw, wcs_mrs_xwalk_simple, 
+   wcs_mrs_xwalk_filespec,
+   junk_1, junk_2, junk_3, junk_4)
+```
+
+Here I'll save several data structures that could be necessary in sessions after today's.
+
+```{r}
+# saving material crosswalk with plausibility notes.
+saveRDS(
+  wcs_mrs_xwalk_all_plausibles, 
+  file = "intermediate_output/wcs_mrs_xwalk_all_plausibles.RData"
+)
+# saving year of interest
+saveRDS(
+  year_of_interest,
+  file = "intermediate_output/year_of_interest.RData"
+)
+# saving swims disposition codes
+saveRDS(
+  swims_disposition_types,
+  file="intermediate_output/swims_disposition_types.RData"
+)
+# savings wasteshed list
+saveRDS(
+  swims_wastesheds,
+  file="intermediate_output/swims_wastesheds.RData"
+)
+```
+
+And here I'll save the waste data.
+
+```{r}
+observedWaste <-
+  bind_rows(
+    mutate(
+      disposal_tons_by_mrs_material,
+      source="disposal_tons_by_mrs_material"
+    ),
+    mutate(
+      recovery_tons_by_mrs_material,
+      source="recovery_tons_by_mrs_material"
+    )
+  )
+saveRDS(
+  observedWaste,
+  file="intermediate_output/observedWaste.RData"
+)
+```
+
+So I've saved it as "observedWaste".
+
+From here two other pieces of code... "import and align WARM factors" and "import and align DEQ factors" will standardize the waste records against the relevant impact factors, creating "mass profile" and "impact factor" files to feed into subsequent analyses and/or the app.
