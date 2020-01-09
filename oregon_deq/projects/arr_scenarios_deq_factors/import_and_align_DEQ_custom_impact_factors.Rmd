@@ -931,11 +931,11 @@ write.csv(
   row.names = FALSE
 )
 saveRDS(
-  impact_factors_deq, "intermediate_output/impact_factors_deq.RData"
+  impact_factors_deq, "intermediate_output/impact_factors.RData"
 )
 write.csv(
   impact_factors_deq,
-  "intermediate_output/impact_factors_deq.csv",
+  "intermediate_output/impact_factors.csv",
   row.names=FALSE
 )
 # checking for synchrony
