@@ -370,7 +370,18 @@ junk_dispose_alter3 <-
   rename(total_tons=tons) %>%
   mutate(
     tons=total_tons*proportion_of_tons,
-    umbDisp="disposal"
+    umbDisp="disposal",
+    # CERTAIN NONORGANIC MATERIALS ARE NONSENSICAL FOR
+    # COMBUSTION.  I NEED TO FIND A MORE SYSTEMATIC WAY
+    # OF DEALING WITH THIS, BUT FOR NOW THERE IS JUST A 
+    # MANUAL FIX.  
+    disposition=case_when(
+      material=="Aluminum" ~ "landfilling",
+      material=="Glass" ~ "landfilling",
+      material=="ScrapMetal" ~ "landfilling",
+      material=="TinnedCan" ~ "landfilling",
+      TRUE ~ disposition
+    )
   ) %>%
   select(-total_tons, -proportion_of_tons)
 
@@ -470,3 +481,183 @@ rm(temp_ifs_by_ws, temp_mat_disp_combo, temp_special_mileages, temp_wastesheds)
 Ok, I've gotten that far.  I have the optimal picks for each wasteshed by impactCategory.
 
 next: i need to apply them to all of the end-of-life tons.  and then label the scenario "optimal" and the optVariant as the impactCategory.
+
+So I get masses at the end of life, and total them for each year, wasteshed, and material.  At this point disposition has disappeared.  Then I apply the optimal dispositions to them.  There should only be 1 for each combo, so that shouldn't change the number of lines (except that the lines should be multiplied by 6, for each of the impact categories.)  Then i need to add production tons for each... i guess i could just duplicate the existing file and change disposition to production.
+
+```{r}
+junk_masses_eol_sum <-
+  summarise(
+    group_by(masses_eol, year, wasteshed, material),
+    tons=sum(tons)
+  ) %>%
+  ungroup()
+
+junk_masses_eol_with_optimal <-
+  left_join(
+    junk_masses_eol_sum,
+    filter(optimal_eol_picks_by_wasteshed, optimalEOLchoice==TRUE),
+    by = c("wasteshed", "material")
+  ) %>%
+  arrange(impactCategory, wasteshed, material, disposition) %>%
+  select(-optimalEOLchoice) %>%
+  mutate(scenario="optimal", optVariant=impactCategory)
+
+# now to get production tons I just double that
+junk_masses_prod_from_optimal <-
+  junk_masses_eol_with_optimal %>%
+  mutate(disposition="production")
+
+# all tons for the optimal scenario 
+junk_optimal <-
+  bind_rows(
+    junk_masses_prod_from_optimal,
+    junk_masses_eol_with_optimal
+  ) %>%
+  arrange(
+    impactCategory,
+    year, wasteshed, material, disposition
+  ) %>%
+  select(-impactCategory, -impactUnits)
+
+# need to save the list of optVariants for later
+junk_list_of_optVariants <-
+  junk_masses_eol_with_optimal %>%
+  select(scenario, optVariant) %>%
+  unique()
+```
+
+gotta make a zero file of all the possibilities for each optvariant
+```{r}
+junk_optimal_zero <-
+  full_join(
+    masses_lc %>% mutate(dummy=1),
+    junk_list_of_optVariants %>% mutate(dummy=1),
+    by="dummy"
+  ) %>%
+  select(-dummy) %>%
+  rename(otons=tons) %>% 
+  arrange(scenario, optVariant, year, wasteshed, material, disposition)
+```
+
+```{r}
+# now merging the optimal masses with all the possibles
+# (which fills in zeros and gives us umbrella dispositions)
+junk_optimal_plus <-
+  full_join(
+    junk_optimal_zero, 
+    junk_optimal,
+    by=c("scenario", "optVariant", 
+         "year", "wasteshed", "material", "disposition")
+  ) %>%
+  mutate(tons=ifelse(is.na(tons),0,tons)) %>%
+  arrange(optVariant, year, wasteshed, material, disposition)
+```
+
+So, junk_optimal_plus is almost right.  But occasionally it gets thrown off if there is >1 umbrella disposition associated with the optimal disposition.  So I need to correct for that.
+
+```{r}
+junk_optimal_count <-
+  junk_optimal_plus %>%
+  group_by(
+    scenario, optVariant, year, wasteshed, material, disposition
+  ) %>%
+  summarise(myCount=n()) %>%
+  ungroup()
+
+junk_optimal_plus_2 <-
+  left_join(
+    junk_optimal_plus,
+    junk_optimal_count,
+    by = c("scenario", "optVariant", "year", "wasteshed",
+           "material", "disposition")
+  ) %>%
+  mutate(
+    tons=ifelse(disposition!="production",tons/myCount,tons)
+  ) %>%
+  select(-myCount, -otons)
+```
+
+Ok, that seems to add up. 
+
+I will put more checks in later.
+
+Next step (after a break)... get all those scenarios into symmetrical files, merge them, and get rid of temporary objects.
+
+```{r}
+# building the summary file...
+# the first scenario, ACTUAL, is done.  results are in junk_actual.
+# the second scenario, DISPOSE_ALL, is also done, but missing some
+# zeros.  so let's create one with all the zeros.
+junk_dispose_all_better <-
+  full_join(
+    junk_actual %>% select(-tons, -scenario, -optVariant),
+    junk_dispose_all,
+    by = c("year", "wasteshed", "material", "disposition", "umbDisp")
+  ) %>%
+  mutate(
+    tons = ifelse(is.na(tons),0,tons),
+    scenario="dispose_all",
+    optVariant="dispose_all"
+  )
+# the third scenario, OPTIMAL, is in junk_optimal_plus_2
+# let's merge and save them
+arr_mass_profiles <-
+  bind_rows(
+    junk_actual,
+    junk_dispose_all_better,
+    junk_optimal_plus_2
+  ) %>%
+  arrange(scenario, optVariant, year, wasteshed, material,
+          disposition)
+```
+
+
+cleaning up the workspace
+
+```{r}
+# removing all but the needed objects
+rm(
+  list=
+    setdiff(
+      ls(), 
+      c("arr_mass_profiles", 
+        "impact_factors_by_wasteshed",
+        "impact_factors", 
+        "deq_pal",
+        "material_sort_order", 
+        "theme_539"
+      )
+    )
+)
+```
+
+
+I should have what I need... a single file with all the masses for all the scenarios (arr_mass_profiles)
+
+Let's just double check that there are impact factors for all of them.
+```{r}
+testSet1 <-
+  left_join(
+    arr_mass_profiles,
+    impact_factors,
+    by = c("material", "disposition")
+  ) 
+testSet2 <-
+  testSet1 %>% filter(is.na(impactFactor))
+print(testSet2)
+testSet3 <-
+  arr_mass_profiles %>%
+  group_by(scenario, optVariant) %>%
+  summarise(tons=sum(tons)) %>%
+  ungroup()
+print(testSet3)
+```
+
+
+testSet2 should have no missing impact factors
+testSet3 should have the same number of tons in each scenario and variant.
+
+```{r}
+# cleaning up the test objects
+rm(testSet1, testSet2, testSet3)
+```
