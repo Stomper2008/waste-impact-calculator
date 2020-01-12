@@ -661,3 +661,25 @@ testSet3 should have the same number of tons in each scenario and variant.
 # cleaning up the test objects
 rm(testSet1, testSet2, testSet3)
 ```
+
+## Generating the ARR charts
+
+So now I want to make charts expressing the ARR.
+And perhaps expressing the idea of reduction as an alternative.
+
+on one side is a stacked bar chart of the 3 scenarios.
+dispose_all, actual, and one of the optimals.
+perhaps there is a 4th bar expressing a reduction scenario.
+
+on the other side is a matching bar chart of total impacts.
+
+optional: drawn about with guide lines to 
+
+
+
+
+each chart is going to be 
+a selection of 
+year wasteshed [all materials] and optVariant for the optimal.
+
+
