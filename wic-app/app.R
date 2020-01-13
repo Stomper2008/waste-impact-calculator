@@ -72,14 +72,6 @@ library(heatmaply)
 # importing some graphic conventions (to be expanded later)
 source(file="../oregon_deq/resources/theme_539.R")
 
-# creating a default chart style
-theme_539 <- function() {
-  theme_fivethirtyeight() +
-  theme(
-    rect=element_rect(fill=NA)
-  )
-}
-
 # importing impact factor data
 impact_factors <-
   readRDS(
@@ -87,7 +79,21 @@ impact_factors <-
   ) %>%
   as.data.frame()
 
-# importing data for a key chart
+# DATA SPECIFIC TO THE WEIGHT AND RECOVERY RATE TAB
+
+masses_eol_by_umbDisp <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/masses_eol_by_umbDisp.RData"
+)
+
+masses_eol_with_rr <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/masses_eol_with_rr.RData"
+)
+
+material_sort_order <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/material_sort_order.RData"
+)
+
+# DATA FOR THE WEIGHT VS. IMPACT TAB
 weight_vs_impact_chart_data <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/weight_vs_impact_chart_data.RData"
@@ -177,10 +183,28 @@ ui <-
         title="WASTE IMPACT CALCULATOR",
         "An instructional video will go here."
       ),
+      
+      # ui the context panel
       tabPanel(
         title="Context",
         "Charts placing the impacts of waste vs. all materials will go here."
         ),
+      
+      # ui for the weight and recovery rate panel
+      tabPanel(
+        title="Weights and recovery rates",
+        wellPanel(
+          selectInput(
+            inputId="wrr_wasteshed_choice",
+            label="pick a wasteshed",
+            choices=unique(masses_eol_with_rr$wasteshed),
+            selected="Metro"
+          )
+        ),
+      plotOutput("wrr_chart")
+      ), #close ui for the weight and recovery rate panel
+      
+      # ui for the weight vs. impact panel
       tabPanel(
         title="Weight vs. Impacts",
         column(
@@ -283,6 +307,42 @@ ui <-
 # server
 server <- function(input, output) {
   
+  # generating output for the weight and recovery rate tab
+  output$wrr_chart <- renderPlot({
+  ggplot()+
+    ggtitle("Weights and recovery rates for materials in the waste stream")+
+    theme_539()+
+    geom_bar(
+      data=masses_eol_by_umbDisp %>% filter(wasteshed==input$wrr_wasteshed_choice),
+      aes(
+        x = factor(material, levels=material_sort_order), 
+        y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
+      ),
+      stat="identity"
+    )+
+    geom_text(
+      data=masses_eol_with_rr %>% filter(wasteshed==input$wrr_wasteshed_choice),
+      aes(
+        x=material, 
+        y=tons,
+        label=percent(round(wb_recovery_rate, 2))
+      ),
+      hjust=-0.1
+    )+
+    scale_y_continuous(name="short tons", labels=comma)+
+    coord_flip()+
+    scale_colour_manual(values=rev(c("aquamarine4","steelblue4")))+
+    scale_fill_manual(values=rev(c("aquamarine4", "steelblue4")))+
+    scale_alpha_manual(values=c(0.25,0.75))+
+    theme(
+      legend.position=c(0.7,0.2),
+      axis.title=element_text(),
+      axis.title.y=element_blank(),
+      axis.title.x=element_text()
+    )
+  })
+  
+  # generating output for the weight vs. impacts tab
   output$wvi_chart <-
     renderPlot({
       ggplot()+

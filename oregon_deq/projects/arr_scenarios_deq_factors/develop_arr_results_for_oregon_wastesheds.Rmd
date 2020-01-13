@@ -43,7 +43,10 @@ impact_factors <-
   readRDS("intermediate_output/impact_factors.RData")
 ```
 
-I need to generate the end-of-life mass table in the particular form necessary for the weight chart.
+
+## Weight and recovery rate chart
+
+Need to generate a chart that shows just weight of materials in the wastestream, with their recovery rates.  This will be in the app too, so I will save the data files used for the chart.
 
 ```{r}
 masses_eol <- baseline_mass_profile
@@ -59,6 +62,11 @@ masses_eol_by_umbDisp <-
     recovered_tons = ifelse(umbDisp=="recovery",tons,0)
   )
 
+saveRDS(
+  masses_eol_by_umbDisp,
+  "intermediate_output/masses_eol_by_umbDisp.RData"
+)
+
 masses_eol_with_rr <-
   summarise(
     group_by(masses_eol_by_umbDisp, year, wasteshed, material),
@@ -72,7 +80,71 @@ masses_eol_with_rr <-
     pctOfTotal = tons/sum(tons)
     ) %>% 
   ungroup()
+
+saveRDS(
+  masses_eol_with_rr,
+  "intermediate_output/masses_eol_with_rr.RData"
+)
+
+material_sort_order <-
+  summarise(
+    group_by(masses_eol_with_rr, material),
+    tons=sum(tons)
+  ) %>%
+  ungroup() %>%
+  arrange(tons) %>%
+  pull(material)
+
+saveRDS(
+  material_sort_order,
+  "intermediate_output/material_sort_order.RData"
+)
 ```
+
+This is enough to make the weight and recovery rate chart.  Let's do it and save the output.
+
+```{r fig.height=4.5, fig.width=6}
+ggplot()+
+  ggtitle("Weights and recovery rates for materials in the waste stream")+
+  theme_539()+
+  geom_bar(
+    data=masses_eol_by_umbDisp %>% filter(wasteshed=="Metro"),
+    aes(
+      x = factor(material, levels=material_sort_order), 
+      y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
+    ),
+    stat="identity"
+  )+
+  geom_text(
+    data=masses_eol_with_rr %>% filter(wasteshed=="Metro"),
+    aes(
+      x=material, 
+      y=tons,
+      label=percent(round(wb_recovery_rate, 2))
+    ),
+    hjust=-0.1
+  )+
+  scale_y_continuous(name="short tons", labels=comma)+
+  coord_flip()+
+  scale_colour_manual(values=rev(c("aquamarine4","steelblue4")))+
+  scale_fill_manual(values=rev(c("aquamarine4", "steelblue4")))+
+  scale_alpha_manual(values=c(0.25,0.75))+
+  theme(
+    legend.position=c(0.7,0.2),
+    axis.title=element_text(),
+    axis.title.y=element_blank(),
+    axis.title.x=element_text()
+  )
+ggsave(
+  "chart_output/examples/weights_and_recovery_rates_for_a_wasteshed.svg",
+  bg="transparent"
+  )
+ggsave(
+  "chart_output/examples/weights_and_recovery_rates_for_a_wasteshed.png",
+  bg="transparent"
+)
+```
+
 
 Now I've got to get impact numbers.  This will be considerably longer as there are approximately half a dozen impact categories I am using.
 
@@ -149,14 +221,6 @@ junk2 <-
   mutate(datatype="impact") %>%
   rename(magnitude=impact)
 
-material_sort_order <-
-  summarise(
-    group_by(masses_eol_with_rr, material),
-    tons=sum(tons)
-  ) %>%
-  ungroup() %>%
-  arrange(tons) %>%
-  pull(material)
 
 weight_vs_impact_chart_data <-
   bind_rows(junk2, junk1) %>%
