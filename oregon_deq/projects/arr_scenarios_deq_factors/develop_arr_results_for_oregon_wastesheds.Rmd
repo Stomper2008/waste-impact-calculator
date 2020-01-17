@@ -26,6 +26,7 @@ library(knitr)
 library(rmarkdown)
 library(svglite)
 library(ggthemes)
+library(broom)
 ```
 Run some code to set a graphic style.
 
@@ -729,21 +730,201 @@ rm(testSet1, testSet2, testSet3)
 ## Generating the ARR charts
 
 So now I want to make charts expressing the ARR.
-And perhaps expressing the idea of reduction as an alternative.
 
-on one side is a stacked bar chart of the 3 scenarios.
+on one side is a stacked bar chart of the weights in 3 scenarios.
 dispose_all, actual, and one of the optimals.
-perhaps there is a 4th bar expressing a reduction scenario.
 
-on the other side is a matching bar chart of total impacts.
+on the other side a stacked bar chart of the life cycle impacts.
 
-optional: drawn about with guide lines to 
+```{r}
+impacts_in_detail <-
+  left_join(
+    arr_mass_profiles,
+    impact_factors_by_wasteshed,
+    by=c("wasteshed", "material", "disposition")
+  ) %>%
+  arrange(
+    optVariant,
+    impactCategory,
+    wasteshed,
+    material,
+    LCstage,
+    disposition
+  ) %>%
+  mutate(
+    impact=
+      ifelse(
+        LCstage=="endOfLifeTransport",
+        tons*impactFactor*miles/impliedMiles,
+        tons*impactFactor
+      )
+  )
+impacts_arr_selected_source_data <-
+  impacts_in_detail %>%
+  filter(
+    wasteshed=="Baker" | wasteshed=="Benton",
+    impactCategory=="Smog" | impactCategory=="Global warming",
+    optVariant %in%
+      c("Smog", "Global warming", "actual", "optimal", "dispose_all")
+  ) %>%
+  filter(
+    scenario == "actual" | scenario=="dispose_all" |
+      scenario == "optimal" & impactCategory==optVariant
+  )
+impacts_arr_sums_for_chart <-
+  summarise(
+    group_by(
+      impacts_arr_selected_source_data, 
+      wasteshed, impactCategory, impactUnits, optVariant, scenario
+    ),
+    impact=sum(impact)
+  ) %>%
+  ungroup()
+impacts_arr_sums_wider <-
+  pivot_wider(
+    impacts_arr_sums_for_chart %>% select(-optVariant),
+    names_from = "scenario",
+    values_from = "impact"
+  ) %>%
+  mutate(
+    arr=(dispose_all-actual)/(dispose_all-optimal)
+  )
+```
 
+ok so that file (impacts_arr_sums_for_chart) has impact sums, but not weight based stuff.  i've gotta go back and get the weight-based recovery rate for each scenario.
 
+```{r}
+weight_stuff_for_chart_1 <-
+  impacts_arr_selected_source_data %>%
+  filter(LCstage=="endOfLife") 
 
+weight_stuff_for_chart_2 <-
+  weight_stuff_for_chart_1 %>%
+  mutate(recoveredTons=ifelse(umbDisp=="recovery",tons,0)) %>%
+  group_by(
+    optVariant,
+    wasteshed,
+    scenario,
+    umbDisp
+  ) %>%
+  summarise(
+    tons=sum(tons),
+    recoveredTons=sum(recoveredTons)
+    ) %>%
+  ungroup() %>%
+  arrange(wasteshed, optVariant, scenario, umbDisp)
 
-each chart is going to be 
-a selection of 
-year wasteshed [all materials] and optVariant for the optimal.
+weight_stuff_for_chart_3 <-
+  weight_stuff_for_chart_2 %>%
+  group_by(wasteshed, optVariant, scenario) %>%
+  summarise(
+    tons=sum(tons),
+    recoveredTons=sum(recoveredTons),
+    rr=sum(recoveredTons)/sum(tons)
+  ) %>%
+  ungroup()
+```
 
+not sure if that was the most efficient way to do it, but there's the data i need.
 
+```{r}
+# for making a model of impact x recovery rate i can combine the weight and
+# impact files.
+
+arr_model_maker <-
+  full_join(
+    impacts_arr_sums_for_chart,
+    weight_stuff_for_chart_3 %>% select(-tons, -recoveredTons),
+    by=c("wasteshed", "optVariant", "scenario")
+  ) %>%
+  mutate(
+    scenario=factor(scenario, levels=c("dispose_all", "actual", "optimal"))
+  ) %>%
+  group_by(wasteshed, impactCategory, impactUnits)
+arr_model <-
+  do(
+    arr_model_maker,
+    tidy(
+      lm(
+        impact~rr,
+        data=.,
+        singular.ok = TRUE
+      )
+    )
+  )
+arr_model_coeff <-
+  pivot_wider(
+    arr_model %>% select(wasteshed, impactCategory, impactUnits, term, estimate),
+    names_from="term",
+    values_from = "estimate"
+  ) %>%
+  rename(rr_intercept=`(Intercept)`, rr_slope=rr)
+```
+
+now making a plot
+```{r}
+ggplot()+
+  ggtitle("test ARR impact plot")+
+  theme_539()+
+  geom_bar(
+    data=arr_model_maker,
+    aes(x=scenario, y=impact),
+    stat="identity"
+  )+
+  facet_wrap(wasteshed~impactCategory, scales="free")
+ggplot()+
+  ggtitle("test ARR trend plot")+
+  theme_539()+
+  geom_point(
+    data=arr_model_maker,
+    aes(x=rr, y=impact,  fill=scenario, color=scenario)
+  )+
+  geom_abline(
+    data=arr_model_coeff,
+    aes(intercept=rr_intercept, slope=rr_slope)
+  )+
+  facet_wrap(wasteshed~impactCategory, scales="free")
+```
+
+I haven't checked any of the numbers, but I am going to move on to writing some of the output data files for use in the app.
+
+```{r}
+# need one file with one record per wasteshed and optVariant
+arr_summary_data_0 <-
+  full_join(
+    impacts_arr_sums_wider,
+    arr_model_coeff,
+    by=c("wasteshed", "impactCategory", "impactUnits")
+  )
+arr_summary_data_1 <-
+  full_join(
+    arr_summary_data_0,
+    weight_stuff_for_chart_3 %>% 
+      filter(scenario=="actual") %>%
+      select(wasteshed, rr) %>%
+      rename(wb_rr=rr),
+    by="wasteshed"
+  )
+saveRDS(
+  arr_summary_data_1,
+  "intermediate_output/arr_summary_data_1.RData"
+)
+# also need one file with 2 records per wasteshed and optVariant
+arr_summary_data_2 <-
+  weight_stuff_for_chart_2 %>% select(-recoveredTons)
+saveRDS(
+  arr_summary_data_2,
+  "intermediate_output/arr_summary_data_2.RData"
+)
+# also need one file with 3 impact records per wasteshed and optVariant
+arr_summary_data_3 <-
+  impacts_arr_sums_for_chart
+saveRDS(
+  arr_summary_data_3,
+  "intermediate_output/arr_summary_data_3.RData"
+)
+```
+
+UT OH PROBLEM... 
+THE ARR_SUMMARY_DATA_2 FILE DOESN'T SEEM TO HAVE THE RIGHT NUMBER OF TONS.
+GOTTA FIX THAT.

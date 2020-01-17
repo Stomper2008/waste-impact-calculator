@@ -134,6 +134,22 @@ hm_14b <-
   hm_13 %>% 
   select(impactCategory, wasteshed, material, proportionateness)
 
+# DATA SPECIFIC TO RECYCLING VS. REDUCTION TAB
+arr_summary_data_1 <-
+  readRDS(
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/arr_summary_data_1.RData"
+  )
+arr_summary_data_2 <-
+  readRDS(
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/arr_summary_data_2.RData"
+  )
+arr_summary_data_3 <-
+  readRDS(
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/arr_summary_data_3.RData"
+  )
+
+
+
 # DATA FOR THE FREE ENTRY PAGE
 # creating the list of materials and end-of-life dispositions
 # available for users to enter weights and mileages.
@@ -244,7 +260,34 @@ ui <-
         plotlyOutput(outputId = "hm_chart_pctImpact")
         ),
       
-      tabPanel(title="Recycling vs. Reduction"),
+      
+      
+      
+      # ui for the recycling vs. reduction tab
+      tabPanel(
+        title="Recycling vs. Reduction",
+        selectInput(
+          inputId = "rvr_wasteshed_choice",
+          label = "choose a wasteshed",
+          choices = unique(arr_summary_data_1$wasteshed),
+          selected = "Benton"
+        ),
+        selectInput(
+          inputId = "rvr_impactCategory_choice",
+          label = "choose an impact category and standard",
+          choices = unique(arr_summary_data_1$impactCategory),
+          selected = "Global warming"
+        ),
+        "GIVE CLEAR BLUNT TEXT!",
+        "The weight-based recovery rate is XXXX",
+        plotOutput("rvr_weight_chart"),
+        "That reduces impacts by XXXX",
+        plotOutput("rvr_impact_chart")
+      ), # close ui for the recycling vs. reduction tab
+      
+      
+      
+      # ui for the "enter your own" tab
       tabPanel(
         title="Enter your own waste",
         fluidRow(
@@ -402,6 +445,24 @@ server <- function(input, output) {
         colors = viridis( n=256, begin=0, end=1, option="plasma")
       )
     )
+  
+  # GENERATING OUTPUT FOR THE RECYCLING VS REDUCTION TAB
+  output$rvr_weight_chart <-
+    renderPlot({
+      ggplot()+
+      theme_539()+
+      geom_bar(
+        data=arr_summary_data_2 %>% 
+          filter(
+            wasteshed==input$rvr_wasteshed_choice &
+              optVariant %in% 
+              c("actual", "dispose_all", input$rvr_impactCategory_choice)
+          ),
+        aes(x=scenario, y=tons, color=umbDisp, fill=umbDisp),
+        stat="identity",
+        position="stack"
+      )
+    })
   
 
   # REACTIVE OBJECTS AND OUTPUTS FOR THE ENTER-YOUR-OWN PAGE  
