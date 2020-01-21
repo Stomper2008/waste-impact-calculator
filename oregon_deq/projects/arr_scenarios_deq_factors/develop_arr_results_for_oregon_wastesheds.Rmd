@@ -762,8 +762,9 @@ impacts_in_detail <-
 impacts_arr_selected_source_data <-
   impacts_in_detail %>%
   filter(
-    wasteshed=="Baker" | wasteshed=="Benton",
-    impactCategory=="Smog" | impactCategory=="Global warming",
+#    (material=="Aluminum" | material=="Cardboard") & 
+    (wasteshed=="Baker" | wasteshed=="Benton") &
+    (impactCategory=="Smog" | impactCategory=="Global warming") &
     optVariant %in%
       c("Smog", "Global warming", "actual", "optimal", "dispose_all")
   ) %>%
@@ -796,7 +797,10 @@ ok so that file (impacts_arr_sums_for_chart) has impact sums, but not weight bas
 ```{r}
 weight_stuff_for_chart_1 <-
   impacts_arr_selected_source_data %>%
-  filter(LCstage=="endOfLife") 
+  filter(LCstage=="endOfLife") %>%
+  select(year, wasteshed, material, disposition, tons, 
+         umbDisp, scenario, optVariant) %>%
+  unique()
 
 weight_stuff_for_chart_2 <-
   weight_stuff_for_chart_1 %>%
@@ -904,27 +908,48 @@ arr_summary_data_1 <-
       select(wasteshed, rr) %>%
       rename(wb_rr=rr),
     by="wasteshed"
-  )
+  ) %>%
+  mutate(curr_impact_reduction=1-(actual/dispose_all))
 saveRDS(
   arr_summary_data_1,
   "intermediate_output/arr_summary_data_1.RData"
 )
 # also need one file with 2 records per wasteshed and optVariant
 arr_summary_data_2 <-
-  weight_stuff_for_chart_2 %>% select(-recoveredTons)
+  weight_stuff_for_chart_2 %>% 
+  select(-recoveredTons) %>%
+  mutate(
+    umbDisp=factor(umbDisp, levels=rev(c("disposal", "recovery"))),
+    scenario=
+      factor(
+        scenario, 
+        levels=rev(c("dispose_all", "actual", "optimal"))
+      )
+  )
 saveRDS(
   arr_summary_data_2,
   "intermediate_output/arr_summary_data_2.RData"
 )
 # also need one file with 3 impact records per wasteshed and optVariant
 arr_summary_data_3 <-
-  impacts_arr_sums_for_chart
+  impacts_arr_sums_for_chart %>%
+  mutate(
+    scenario=
+      factor(
+        scenario, 
+        levels=rev(c("dispose_all", "actual", "optimal"))
+      )
+  )
 saveRDS(
   arr_summary_data_3,
   "intermediate_output/arr_summary_data_3.RData"
 )
 ```
 
-UT OH PROBLEM... 
-THE ARR_SUMMARY_DATA_2 FILE DOESN'T SEEM TO HAVE THE RIGHT NUMBER OF TONS.
-GOTTA FIX THAT.
+Ok, i seem to have this working!
+Now the thing is, to make the presentation in the app as clear as possible.
+
+Maybe extremely simple charts... like a single bar chart to express amounts recovered and disposed... paired with a single bar chart to express life cycle impacts and impacts reduced.
+
+Maybe then I could make a "scenario" bar where the user attempts to change impacts by reducing or recovering.
+Or, large bull
