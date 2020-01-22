@@ -7,9 +7,7 @@ by Martin Brown
 Martin.Brown@state.or.us
 +1.503.229.5502
 
-This R Markdown notebook documents my work to import DEQ's in-house impact factors for the Waste Impact Calculator, and align them with the materials and disposition names found in DEQ's solid waste data.
-
-Some basic orientation on the Waste Impact Calculator (formerly IMFO) model can be found in the old IMFO project profile on DEQ's local network drive at \\deqhq1\swrshare\!PROGRAMS-SOLID-WASTE-(PSW)\LCA\Projects\IMFO\Phase 3\project planning and progress\IMFOprojectProfile20180214.pdf .
+This R Markdown notebook documents my work to import DEQ's in-house impact factors for the Waste Impact Calculator, and align them with the materials and disposition names found in DEQ's solid waste data (which have already been imported and should be found in the folder /waste-impact-calculator/oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/observedWaste.RData).
 
 This code has been around a while in various forms; the emphasis in my current work on it is to make the baseline mass profiles end-of-life only, but also reflective of all the conceivable end-of-life options.
 
@@ -40,7 +38,9 @@ Benton    Glass     EOLt    Disposal  Landfill  5     20
 Benton    Glass     EOL     Recovery  Recycling 10    0
 Benton    Glass     EOLt    Recovery  Recycling 10    100
 
-The other data file is about impact factors.  It should have one record for each combination of:
+Anyway, that data should be in the "observedWaste.RData" file I referred to above.
+
+The other necessary data file is about impact factors.  It should have one record for each combination of:
 
 * Material
 * [Life Cycle Stage]
@@ -107,7 +107,7 @@ impactFactorsSourceFilespec <-
 # getting the impact factors themselves, without column names
 impactFactorsRaw <- read_xlsx(
    path=impactFactorsSourceFilespec, 
-   range="g10:de63",
+   range="g10:em98",
    col_names = FALSE,
    trim_ws = TRUE
    )
@@ -116,7 +116,7 @@ impactFactorsRaw <- read_xlsx(
 impactFactorsColumnNames <- as.character(
    read_xlsx(
       path=impactFactorsSourceFilespec,
-      range="g9:de9",
+      range="g9:em9",
       col_names=FALSE,
       col_types=c("text")
       )
@@ -155,7 +155,7 @@ if(
    names(impactFactorsRaw) <- impactFactorsColumnNames
    }
 # printing out what we've got so far
-str(impactFactorsRaw)
+# str(impactFactorsRaw)
 print(impactFactorsRaw)
 ```
 ```{r}
@@ -166,7 +166,7 @@ impactFactorsRawFiltered <- filter(
    impactFactorsRaw,
    impactFactorsRaw[,2]!=0 & impactFactorsRaw[,3]!=0 & impactFactorsRaw[,4]!=0
    )
-str(impactFactorsRawFiltered)
+# str(impactFactorsRawFiltered)
 ```
 ```{r}
 # now let's flip the columns so they are rows.
@@ -182,7 +182,7 @@ impactFactorsRawFlipped <- gather(
    filter(material_LCstage_disposition!="peterCcheckVariable")
 
 # printing out what I've got
-str(impactFactorsRawFlipped)
+# str(impactFactorsRawFlipped)
 ```
 ```{r}
 # now I've got these really long fields that need to be parsed into 
@@ -299,7 +299,7 @@ impactFactorsAll <- select(
    material,LCstage,disposition,impactCategory,impactUnits,impactFactor,
      corporateSource,impactFactorID
    )
-str(impactFactorsAll)
+# str(impactFactorsAll)
 
 # correcting a typo in the material names
 impactFactorsAll <- mutate(
@@ -339,7 +339,8 @@ impactFactorsSelected <-
       impactCategory == "Global Warming Air, incl biogenic carbon, incl LUC, no norm/weight" |
       impactCategory == "Human toxicity, cancer (recommended)" |
       impactCategory == "Primary energy demand from ren. and non ren. resources (net cal. value)" |
-      impactCategory == "Smog Air"
+      impactCategory == "Smog Air" |
+      impactCategory == "Human Health Particulate Air"
       )  %>%
   # making shorter names
   mutate(
@@ -349,11 +350,11 @@ impactFactorsSelected <-
       impactCategory == "Global Warming Air, incl biogenic carbon, incl LUC, no norm/weight" ~ "Global warming",
       impactCategory == "Human toxicity, cancer (recommended)" ~ "Human toxicity",
       impactCategory == "Primary energy demand from ren. and non ren. resources (net cal. value)" ~ "Energy demand",
-      impactCategory == "Smog Air" ~ "Smog"
+      impactCategory == "Smog Air" ~ "Smog",
+      impactCategory == "Human Health Particulate Air" ~ "Air PM2.5"
       )
     ) %>%
-  # eliminating some technical variables not necessary for the interactive IMFO
-  # app
+  # eliminating some technical variables not necessary for further work
   select(-corporateSource,-impactFactorID)
 # the result should looks something like this:
 # > print(impactFactorsSelected)
@@ -452,7 +453,8 @@ ifJunk2 <- mutate(
   cutFlag = case_when(
     disposition == "incinerationNoER" ~ TRUE,
     disposition == "recyclingFiberglass" ~ TRUE,
-    disposition == "reuse" ~ TRUE
+    disposition == "reuse" ~ TRUE,
+    disposition == "reuseContainer" ~ TRUE
     )
   ) %>%
   filter(is.na(cutFlag)) %>%
@@ -497,7 +499,7 @@ however, peter canepa says not to use a few of those, because he's still working
 
 ```{r}
 impactFactorsIMFOapp <-
-  filter(impactFactorsIMFOapp, material != "Wood" & material != "Electronics")
+  filter(impactFactorsIMFOapp, material != "Wood")
 ```
 
 ```{r}
@@ -531,12 +533,11 @@ rm(observedWaste)
 ```
 
 
-----begin insertion of old code---
-
-
 # Status at this point in the analysis.
 
-I currently have two main data frames expressing the contents of solid waste -- disposal_tons_by_mrs_material, and recovery_tons_by_mrs_material.  I need to link them up, so they're in a single file, and then also make sure the materials and dispositions in the solid waste file have equivalents in terms of the impact factors I'm going to use.... without losing any tons.
+I have the impact factors data frame, impact_factors_deq.
+
+I also have two data frames expressing the contents of solid waste -- disposal_tons_by_mrs_material, and recovery_tons_by_mrs_material.  I need to link them up, so they're in a single file, and then also make sure the materials and dispositions in the solid waste file have equivalents in terms of the impact factors I'm going to use.... without losing any tons.
 
 Let's just list the structures of those two solid waste files, list the material names, and then get the impact factors.
 
@@ -560,9 +561,6 @@ rm(all_sw_data_temp, all_sw_data_materials_temp)
 
 It looks like a few categories have been added... things like "Animal Waste/grease" weren't recorded in recovery but could be recovered?
 
-# Bringing in the impact factors.
-
-In this work I want to use DEQ's own impact factors, which I already imported. After that's done I need to confirm I can set an impact factor for every available combination of material and disposition.
 
 
 ## Associating the recovery materials and disposition codes with impact factors.
@@ -605,9 +603,6 @@ rm(junk1, junk2, junk3, junk4)
 
 ```
 
-```{r}
-getwd()
-```
 
 
 ```{r}
@@ -622,7 +617,7 @@ mrs_deq_xwalk <-
 
 
 ```{r}
-# linking recovery data to warm names and dispositions..
+# linking recovery data to MRS names and dispositions..
 junk2 <-
   readRDS("intermediate_output/swims_disposition_types.RData") %>%
   select(swims_disposition_code, swims_disposition_short_desc) %>%
@@ -644,7 +639,10 @@ recovery_tons_temp_1 <-
     by = c("swims_material", "swims_disp")
   ) %>%
   filter(!is.na(material) & !is.na(disposition)) %>%
-  select(-swims_material, -swims_disp)
+  select(-swims_material, -swims_disp) %>%
+  # removing some nonsensical combustion of electronics being
+  # counted as recovery
+  filter(!(material=="Electronics" & disposition=="combustion"))
 rm(junk2, recovery_tons_by_mrs_material, recovery_tons_by_mrs_material2)
 ```  
 
