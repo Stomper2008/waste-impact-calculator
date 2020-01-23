@@ -163,7 +163,6 @@ masses_lc <-
     masses_prod
   ) %>%
   arrange(year, wasteshed, material,  disposition)
-
 masses_with_impacts_in_detail <-
   left_join(
     masses_lc,
@@ -171,10 +170,20 @@ masses_with_impacts_in_detail <-
     by=c("material", "disposition")
   ) %>%
   mutate(
-    miles=impliedMiles,  #sets end-of-life-mileage to default values
-    # nb "miles" should only be changed when LCstage="endOfLifeTransport"
-    # otherwise the following impact calculation will be wrong
-    impact=tons*impactFactor*miles/impliedMiles #calculates impacts
+    # if end-of-life-miles are missing, sets them to default
+    miles=
+      ifelse(
+        is.na(miles) & disposition!="production",
+        impliedMiles,
+        miles
+      ),
+    # calculates impacts
+    impact=
+      ifelse(
+        LCstage=="endOfLifeTransport",
+        tons*impactFactor*(miles/impliedMiles),
+        tons*impactFactor
+      )
   ) %>%
   arrange(impactCategory, year, wasteshed, material, LCstage, disposition)
 
@@ -456,7 +465,15 @@ junk_dispose_all <-
   group_by(year, wasteshed, material, umbDisp, disposition) %>%
   summarise(tons=sum(tons)) %>%
   ungroup() %>%
-  mutate(scenario="dispose_all", optVariant="dispose_all")
+  mutate(scenario="dispose_all", optVariant="dispose_all") %>%
+  # fixing a nonsensical entry ... must find the source eventually
+  mutate(
+    disposition = ifelse(
+      material=="Electronics" & disposition=="combustion",
+      "landfilling",
+      disposition
+    )
+  )
 # that's the dispose_all scenario
 
 rm(disposal_disposition_proportions_by_wasteshed, junk_dispose_alter1,
@@ -476,19 +493,26 @@ temp_mat_disp_combo <-
   unique()
 temp_wastesheds <-
   masses_eol %>% select(wasteshed) %>% unique()
+# temp_special_mileages <-
+#   full_join(
+#     temp_mat_disp_combo %>% mutate(dummy=1),
+#     temp_wastesheds %>% mutate(dummy=1),
+#     by="dummy"
+#   ) %>%
+#   select(-dummy) %>%
+#   rename(miles=impliedMiles) %>%
+#   mutate(
+#     # here is where any manual changes to miles could go
+#     # (ultimately i guess this needs to be a lookup table of some kind)
+#     miles=miles
+#   )
 temp_special_mileages <-
-  full_join(
-    temp_mat_disp_combo %>% mutate(dummy=1),
-    temp_wastesheds %>% mutate(dummy=1),
-    by="dummy"
-  ) %>%
-  select(-dummy) %>%
-  rename(miles=impliedMiles) %>%
-  mutate(
-    # here is where any manual changes to miles could go
-    # (ultimately i guess this needs to be a lookup table of some kind)
-    miles=miles
-  )
+  masses_lc %>% 
+  filter(disposition!="production") %>%
+  select(wasteshed, material, disposition, miles) %>%
+  unique() %>%
+  mutate(LCstage="endOfLifeTransport")
+
 # ok, now I need create an impact factor file for each wasteshed,
 # with special mileages included
 temp_ifs_by_ws <-
@@ -740,7 +764,7 @@ on the other side a stacked bar chart of the life cycle impacts.
 impacts_in_detail <-
   left_join(
     arr_mass_profiles,
-    impact_factors_by_wasteshed,
+    impact_factors_by_wasteshed %>% select(-miles),
     by=c("wasteshed", "material", "disposition")
   ) %>%
   arrange(
@@ -763,10 +787,10 @@ impacts_arr_selected_source_data <-
   impacts_in_detail %>%
   filter(
 #    (material=="Aluminum" | material=="Cardboard") & 
-    (wasteshed=="Baker" | wasteshed=="Benton") &
-    (impactCategory=="Smog" | impactCategory=="Global warming") &
-    optVariant %in%
-      c("Smog", "Global warming", "actual", "optimal", "dispose_all")
+    # (wasteshed=="Baker" | wasteshed=="Benton") &
+    # (impactCategory=="Smog" | impactCategory=="Global warming") &
+    # optVariant %in%
+    #   c("Smog", "Global warming", "actual", "optimal", "dispose_all")
   ) %>%
   filter(
     scenario == "actual" | scenario=="dispose_all" |

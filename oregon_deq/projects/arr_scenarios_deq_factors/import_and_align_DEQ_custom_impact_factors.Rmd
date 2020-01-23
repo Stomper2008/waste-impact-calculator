@@ -908,18 +908,31 @@ bmp2 <-
         disposition=="recyclingToFiberglass" ~ "recovery",
         disposition=="reuseContainer" ~ "recovery",
         disposition=="useAsAggregate" ~ "recovery",
-        disposition=="composting" ~ "recovery"
+        disposition=="composting" ~ "recovery",
+        disposition=="combustion" ~ "disposal"
       ),
       umbDisp
-    )
+    ),
+    miles = case_when(
+      disposition == "landfilling" ~ 180,
+      disposition == "recycling" ~ 180,
+      disposition == "composting" ~ 180,
+      disposition == "useAsAggregate" ~ 20,
+      disposition == "anaerobicDigestion" ~ 180,
+      disposition == "combustion" ~ 180,
+      TRUE ~ 180
+      )
   )
 
 ```
+I added the miles there at the very end.  Will need to customize this in the future with some sort of lookup table, but for now the numbers are in there.
+
 So bmp2 is the baseline mass profile.  Let me save it properly,  save the mass profile and the impact factors to external files, and double check that every entry has impact factors.
 
 ```{r}
 # saving
 baseline_mass_profile <- bmp2
+
 saveRDS(
   baseline_mass_profile, "intermediate_output/baseline_mass_profile.RData"
 )

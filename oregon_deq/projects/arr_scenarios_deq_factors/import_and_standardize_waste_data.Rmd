@@ -5,9 +5,9 @@ output: html_notebook
 
 by Martin Brown, Martin.Brown@state.or.us
 
-In this R markdown document I want to import Oregon's solid waste data (both disposal and recovery info) for use in the Waste Impact Calculator (WIC)
+In this R markdown document I want to import Oregon's solid waste data (both disposal and recovery info) for use in the Waste Impact Calculator (WIC).
 
-In particular, the goal is to create a "baseline mass profile" that associates a tonnage with each combination of year, wasteshed, material, and end-of-life disposition.  Material names will need to be standardized between the disposal and the recovery information.
+In particular, the goal is to create an "observed waste" file that associates a tonnage, and a end-of-life transport mileage, with each combination of year, wasteshed, material, and end-of-life disposition.  Material names will need to be standardized between the disposal and the recovery information.
 
 This particular version of this code does not align materials with impact factors.  That's because the WIC needs to be set up to use multiple sets of impact factors.  Each set of impact factors will need its own code to align the names and the impact factors.
 
@@ -820,4 +820,4 @@ saveRDS(
 
 So I've saved it as "observedWaste".
 
-From here two other pieces of code... "import and align WARM factors" and "import and align DEQ factors" will standardize the waste records against the relevant impact factors, creating "mass profile" and "impact factor" files to feed into subsequent analyses and/or the app.
+From here two other pieces of code... "import and align WARM factors" and "import and align DEQ custom impact factors" will standardize the waste records against the relevant impact factors, creating "mass profile" and "impact factor" files to feed into subsequent analyses and/or the app.
