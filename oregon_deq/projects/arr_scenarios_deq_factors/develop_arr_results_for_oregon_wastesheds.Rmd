@@ -976,7 +976,6 @@ Now the thing is, to make the presentation in the app as clear as possible.
 Maybe extremely simple charts... like a single bar chart to express amounts recovered and disposed... paired with a single bar chart to express life cycle impacts and impacts reduced.
 
 Maybe then I could make a "scenario" bar where the user attempts to change impacts by reducing or recovering.
-Or, large bull
 
 ## Chart to express where impacts come from under all three scenarios
 

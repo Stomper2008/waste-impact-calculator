@@ -1,7 +1,29 @@
 # file app.R
 # working draft of waste impact calculator app
 
-# load packages
+# GENERAL SETUP OF THIS CODE
+# The app is layed out as a web site with a navigation
+# bar across the top, with drop-down options under each
+# navigation bar entry.
+
+# Each navigation bar entry and/or drop-down option corresponds
+# to a full-page web display.  E.g. the "weights & impacts" 
+# navigation bar leads to several pages, for example one 
+# called "where impacts come from."
+
+# The code mostly follows this structure.  Within 3 sections
+# of code (SETUP, UI, and SERVER), it tries to keep objects
+# and procedures arranged by page display, more or less in the
+# order of the navbar entries and drop-down options.
+
+# Objects associated with a particular page display are named
+# using a prefix to help distinguish them.  E.g. objects 
+# associated with the "where impacts come from" page display
+# have a prefix "wcif", e.g. "wcif_weight_data".
+
+# SETUP SECTION
+
+# load packages 
 library(shiny)
 library(tidyverse)
 library(ggthemes)
@@ -16,11 +38,14 @@ source(file="../oregon_deq/resources/theme_539.R")
 # importing impact factor data
 impact_factors <-
   readRDS(
-    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors.Rdata"
   ) %>%
+  # readRDS(
+  #   "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
+  # ) %>%
   as.data.frame()
 
-# DATA SPECIFIC TO THE WEIGHT AND RECOVERY RATE TAB
+# DATA SPECIFIC TO THE WEIGHT AND RECOVERY RATE PAGE
 
 masses_eol_by_umbDisp <- readRDS(
   "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/masses_eol_by_umbDisp.RData"
@@ -39,6 +64,17 @@ weight_vs_impact_chart_data <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/weight_vs_impact_chart_data.RData"
   )
+
+# DATA FOR THE WHERE IMPACTS COME FROM PAGE
+wicf_weights <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_weights.RData"
+)
+wicf_impacts_net <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_impacts_net.RData"
+)
+wicf_impacts_by_lcstage <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_impacts_by_lcstage.RData"
+)
 
 # DATA FOR THE HEATMAP PAGE
 # getting the weight portion flipped
@@ -216,14 +252,68 @@ ui <-
             sidebarPanel(
               width=3,
               h5("WHAT THIS SHOWS"),
-              "blah",
-              h5("WHAT IT MEANS"),
-              "blah"
+              "The impact chart on the right 
+              shows how net life cycle impacts 
+              of materials are calculated.  The net 
+              impact (the heavy black lines) are the sum of impacts
+              for the life cycle stages of production, end-of-life 
+              transport, and end-of-life treatment.  If there 
+              has been recycling or other recovery activity, 
+              then the end-of-life impact may be negative, which
+              lowers the net impact.  You can try changing the 
+              management scenario to see if increasing 
+              disposal or recovery will substantially change the 
+              net impacts.",
+              h5("WHAT TO LOOK OUT FOR"),
+              "A bit of experimenting with this chart and its 
+              options will start to suggest several things.  
+              First, the great bulk of impacts associated with 
+              materials come from production. Recycling activity 
+              usually reduces those impacts but can't entirely
+              eliminate them.  Second, end-of-life transportation 
+              impacts are usually relatively small."
             ),
             mainPanel(
               width=9,
-              "chart of impacts by life cycle stage",
-              "perhaps with option for optimal scenario?"
+              fluidRow(
+                column(
+                  width=4,
+                  plotOutput("wicf_weight_chart")
+                ),
+                column(
+                  width=5,
+                  plotOutput("wicf_impact_chart")
+                )
+              ),
+              fluidRow(
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="wicf_wasteshed_choice",
+                    label="choose a wasteshed",
+                    selected="Metro",
+                    choices=unique(wicf_weights$wasteshed)
+                  )
+                ),
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="wicf_impactCategory_choice",
+                    label="choose an impact category",
+                    selected="Smog",
+                    choices=unique(wicf_impacts_net$impactCategory)
+                  )
+                ),
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="wicf_scenario_choice",
+                    label="choose a management scenario",
+                    selected="actual",
+                    choices=unique(wicf_impacts_net$scenario)
+                  )
+                )
+              )
             ) #close mainpanel of sidebarlayout for weights vs impacts display
           ) #close sidebarlayout for weights vs. impacts display
         ) # close tabPanel for weights vs. impacts display
@@ -510,6 +600,85 @@ server <- function(input, output) {
         coord_flip()+
         theme(legend.position = "none")
     })
+  
+  # generating output for the where impacts come from page
+
+  output$wicf_weight_chart <- renderPlot({
+    ggplot()+
+    theme_539()+
+    ggtitle("Weight chart")+
+    geom_bar(
+      data=
+        wicf_weights %>%
+        filter(
+          wasteshed==input$wicf_wasteshed_choice,
+          scenario==input$wicf_scenario_choice,
+          optVariant %in% 
+            c("actual", "dispose_all", 
+              input$wicf_impactCategory_choice
+              )
+        ),
+      aes(
+        x=material,
+        y=tons,
+        color=umbDisp,
+        fill=umbDisp,
+        alpha=umbDisp
+      ),
+      stat="identity",
+      position="stack"
+    ) +
+    coord_flip()
+  }
+  ) # close plot definition for wicf_weight_chart
+
+  output$wicf_impact_chart <- renderPlot({  
+    ggplot()+
+    theme_539()+
+    ggtitle("impact chart")+
+    geom_bar(
+      data=
+        wicf_impacts_by_lcstage %>%
+        filter(
+          wasteshed==input$wicf_wasteshed_choice,
+          scenario==input$wicf_scenario_choice,
+          optVariant %in% c(
+            "actual", "dispose_all", input$wicf_impactCategory_choice
+          ),
+          impactCategory==input$wicf_impactCategory_choice
+        ),
+      aes(
+        x=factor(material, levels=material_sort_order),
+        y=impact,
+        color=LCstage,
+        fill=LCstage
+      ),
+      stat="identity",
+      position="stack",
+      alpha=0.3
+    )+
+    geom_bar(
+      data=
+        wicf_impacts_net %>%
+        filter(
+          wasteshed==input$wicf_wasteshed_choice,
+          scenario==input$wicf_scenario_choice,
+          optVariant %in% c(
+            "actual", "dispose_all", input$wicf_impactCategory_choice
+          ),
+          impactCategory==input$wicf_impactCategory_choice
+        ),
+      aes(
+        x=material,
+        y=impact
+      ),
+      color="black",
+      fill=NA,
+      size=2,
+      stat="identity"
+    )+
+    coord_flip()
+  }) # close definition of wicf_impact_chart
   
   # REACTIVE OBJECTS FOR THE HEATMAP PAGE
   # second try: make a plotly heatmap from input-filtered data
