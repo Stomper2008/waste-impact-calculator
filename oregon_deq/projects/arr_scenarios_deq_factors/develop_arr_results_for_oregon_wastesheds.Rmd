@@ -1034,7 +1034,6 @@ saveRDS(
   wicf_impacts_by_lcstage,
   "intermediate_output/wicf_impacts_by_lcstage.RData"
 )
-
 ```
 
 now making a sample chart to see if this works.
