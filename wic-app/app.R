@@ -115,7 +115,7 @@ hm_14b <-
   hm_13 %>% 
   select(impactCategory, wasteshed, material, proportionateness)
 
-# DATA SPECIFIC TO RECYCLING VS. REDUCTION TAB
+# DATA SPECIFIC TO THE "RECYCLING AND ITS LIMITS" PAGE
 arr_summary_data_1 <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/arr_summary_data_1.RData"
@@ -413,8 +413,57 @@ ui <-
         title="Ways to reduce impacts",
         
         tabPanel(
-          title="recycling and its limits (ARR)"
-        ),
+          title="recycling and its limits (ARR)",
+          sidebarLayout(
+            sidebarPanel(
+              h2("Recycling and its limits"),
+              width=3,
+              wellPanel(
+                h5("WHAT THIS PAGE SHOWS"),
+                "blah blah",
+                textOutput("arr_statement")
+              ),
+              wellPanel(
+                h5("WHAT IT MEANS"),
+                "blah blah"
+              )
+            ), # close sidebarpanel for "recycling and its limits"
+            mainPanel(
+              fluidRow(
+                column(
+                  width=4,
+                  h3("weights for three management scenarios"),
+                  plotOutput("arr_weight_chart")
+                ),
+                column(
+                  width=5,
+                  h3("impacts for those same scenarios"),
+                  plotOutput("arr_impact_chart")
+                )
+              ), # close fluidRow
+              fluidRow(
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="arr_wasteshed_choice",
+                    label="choose a wasteshed",
+                    choices = unique(arr_summary_data_1$wasteshed),
+                    selected = "Metro"
+                  )
+                ),
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="arr_impactCategory_choice",
+                    label="choose an impact category",
+                    choices= unique(arr_summary_data_1$impactCategory),
+                    selected="Smog"
+                  )
+                )
+              ) # close fluidRow
+            ) # close mainpanel for "recycling and its limits (ARR)"
+          ) # close sidebarlayout for "recycling and its limits (ARR)"
+        ), # close tabPanel for "reycling and its limits (ARR)" page
         
         tabPanel(
         title="recycling vs. reduction",
@@ -423,8 +472,7 @@ ui <-
           width=3,
           wellPanel(
             h4("WHAT THIS PAGE SHOWS"),
-            "blah blah",
-            textOutput("rvr_statement")
+            "blah blah"
           ),
           wellPanel(
             h4("WHAT IT MEANS"),
@@ -432,62 +480,6 @@ ui <-
           )
         ), # close sidebarPanel
         mainPanel(
-        fluidRow(
-          column(
-            width=6,
-#            "weight chart with labels goes here",
-            plotOutput("rvr_weight_chart")
-            # ,
-            # tableOutput("rvr_weight_table"),
-            # tableOutput("rvr_weight_table_alt")
-            ),
-          column(
-            width=6,
-#            "impact chart without labels goes here",
-            plotOutput("rvr_impact_chart")
-            # ,
-            # tableOutput("rvr_impact_table"),
-            # tableOutput("rvr_impact_table_alt")
-          )
-        ),
-      # fluidRow(
-      #   tableOutput("rvr_impact_model_table")
-      # ),
-      fluidRow(
-        wellPanel(
-          selectInput(
-            inputId = "rvr_wasteshed_choice",
-            label = "choose a wasteshed",
-            choices = unique(arr_summary_data_1$wasteshed),
-            selected = "Benton"
-          ),
-          selectInput(
-            inputId = "rvr_impactCategory_choice",
-            label = "choose an impact category and standard",
-            choices = unique(arr_summary_data_1$impactCategory),
-            selected = "Global warming"
-          )
-        ),# close wellPanel
-        wellPanel(
-          h4("YOUR MANAGEMENT SCENARIO"),
-          sliderInput(
-            inputId="rvr_wbrr",
-            label="your weight-based recovery rate (%)",
-            min = 0, 
-            max = 100,
-            value=0, 
-            step = 2
-          ),
-          sliderInput(
-            inputId="rvr_wbrdr",
-            label="reduce waste generation to (%)",
-            min=0,
-            max=150,
-            value=100,
-            step=2
-          )
-        ) # close wellPanel
-      )
       ) # close mainpanel
       )  # close sidebarLayout
       ),  # close the page layout
@@ -766,113 +758,64 @@ server <- function(input, output) {
       )
     )
   
-  # GENERATING OUTPUT FOR THE RECYCLING VS REDUCTION TAB
+  # generating output objects for the 
+  # recycling and its limits (ARR) page
   
-  rvr_weight_data <- reactive({
+  arr_weight_data <- reactive({
     arr_summary_data_2 %>% 
       filter(
-        wasteshed==input$rvr_wasteshed_choice &
+        wasteshed==input$arr_wasteshed_choice &
         optVariant %in% 
-          c("actual", "dispose_all", input$rvr_impactCategory_choice)
+          c("actual", "dispose_all", input$arr_impactCategory_choice)
       )
   })
   
-  rvr_weight_total <- reactive({
+  arr_weight_total <- reactive({
     sum(
-      filter(rvr_weight_data(), optVariant=="actual")$tons
+      filter(arr_weight_data(), optVariant=="actual")$tons
     )
   })
   
-  rvr_weight_data_alt <- reactive({
-    rvr_weight_data() %>%
-    mutate(
-      scenario=ifelse(scenario=="optimal", "your own", optVariant),
-      scenario=factor(
-        scenario, 
-        levels=rev(c("dispose_all", "actual", "your own"))
-      ),
-      tons=case_when(
-        scenario=="your own" & umbDisp=="recovery" ~
-          rvr_weight_total()*(input$rvr_wbrr/100)*
-          (input$rvr_wbrdr/100),
-        scenario=="your own" & umbDisp=="disposal" ~
-          rvr_weight_total()*(1-(input$rvr_wbrr/100))*
-          (input$rvr_wbrdr/100),
-        TRUE ~ tons
-      )
-    )
-  })
-  
-  rvr_impact_data <- reactive({
+  arr_impact_data <- reactive({
     arr_summary_data_3 %>%
       filter(
-        wasteshed==input$rvr_wasteshed_choice &
+        wasteshed==input$arr_wasteshed_choice &
           optVariant %in% 
-          c("actual", "dispose_all", input$rvr_impactCategory_choice) &
-        impactCategory==input$rvr_impactCategory_choice
+          c("actual", "dispose_all", input$arr_impactCategory_choice) &
+          impactCategory==input$arr_impactCategory_choice
       )
   })
   
-  rvr_impact_model <- reactive({
-    arr_summary_data_1 %>%
-    filter(
-      wasteshed==input$rvr_wasteshed_choice & 
-      impactCategory==input$rvr_impactCategory_choice
-    )
-  })
-  
-  output$rvr_impact_model_table <-
-    renderTable(rvr_impact_model())
-  
-  rvr_impact_data_alt <- reactive({
-    rvr_impact_data() %>%
-    mutate(
-      scenario=ifelse(scenario=="optimal", "your own", optVariant),
-      scenario=factor(
-        scenario, 
-        levels=rev(c("dispose_all", "actual", "your own"))
-      ),
-      impact=ifelse(
-        scenario=="your own",
-        (input$rvr_wbrdr/100)*
-        (rvr_impact_model()$rr_intercept +
-          rvr_impact_model()$rr_slope*(input$rvr_wbrr/100)),
-        impact
-      )
-    )
-  })
-  
-  output$rvr_statement <- 
+  output$arr_statement <- 
     renderText({
       paste("For the ", 
-            input$rvr_wasteshed_choice, 
+            input$arr_wasteshed_choice, 
             " wasteshed, the weight-based recovery rate is ",
             round(filter(arr_summary_data_1, 
-                    wasteshed==input$rvr_wasteshed_choice,
-                    impactCategory==input$rvr_impactCategory_choice)
+                    wasteshed==input$arr_wasteshed_choice,
+                    impactCategory==input$arr_impactCategory_choice)
              $wb_rr, 2),
             ".  That recovery reduces life cycle ",
             (filter(arr_summary_data_1, 
-                    wasteshed==input$rvr_wasteshed_choice,
-                    impactCategory==input$rvr_impactCategory_choice)
+                    wasteshed==input$arr_wasteshed_choice,
+                    impactCategory==input$arr_impactCategory_choice)
             )$impactCategory,
             " impacts by ",
             round((filter(arr_summary_data_1, 
-                    wasteshed==input$rvr_wasteshed_choice,
-                    impactCategory==input$rvr_impactCategory_choice)
+                    wasteshed==input$arr_wasteshed_choice,
+                    impactCategory==input$arr_impactCategory_choice)
             )$curr_impact_reduction, 2),
             ".",
             sep=""
             )
     })
   
-  
-  output$rvr_weight_chart <-
+  output$arr_weight_chart <-
     renderPlot({
       ggplot()+
       theme_539()+
       geom_bar(
-        data=rvr_weight_data_alt(),
+        data=arr_weight_data(),
         aes(
           x=scenario, y=tons, 
           color=scenario, fill=scenario, alpha=umbDisp
@@ -885,16 +828,11 @@ server <- function(input, output) {
       theme(legend.position="none")
     })
   
-  output$rvr_weight_table <-
-    renderTable(rvr_weight_data())
-  output$rvr_weight_table_alt <-
-    renderTable(rvr_weight_data_alt())
-  
-  output$rvr_impact_chart <- renderPlot({
+  output$arr_impact_chart <- renderPlot({
     ggplot()+
     theme_539()+
     geom_bar(
-      data=rvr_impact_data_alt(),
+      data=arr_impact_data(),
       aes(
         x=scenario, y=impact, color=scenario, fill=scenario),
       stat="identity",
@@ -906,10 +844,6 @@ server <- function(input, output) {
     )
   })
   
-  output$rvr_impact_table <-
-    renderTable(rvr_impact_data())
-  output$rvr_impact_table_alt <-
-    renderTable(rvr_impact_data_alt())
 
   # REACTIVE OBJECTS AND OUTPUTS FOR THE ENTER-YOUR-OWN PAGE  
   output$x1 <- 
