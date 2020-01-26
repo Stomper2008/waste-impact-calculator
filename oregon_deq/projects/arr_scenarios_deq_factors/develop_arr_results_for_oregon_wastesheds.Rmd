@@ -1020,7 +1020,23 @@ wicf_weights <-
     umbDisp=factor(umbDisp, levels=c("disposal", "recovery"))
   )
 
+wicf_weight_summaries <-
+  wicf_weights %>%
+  mutate(recoveredTons=ifelse(umbDisp=="recovery", tons,0)) %>%
+  group_by(year, wasteshed, material, scenario, optVariant) %>%
+  summarise(
+    tons=sum(tons),
+    recoveredTons=sum(recoveredTons)
+  ) %>%
+  ungroup() %>%
+  mutate(wbrr=recoveredTons/tons)
+
 # output these for use in the app and/or elsewhere
+saveRDS(
+  wicf_weight_summaries,
+  "intermediate_output/wicf_weight_summaries.RData"
+)
+
 saveRDS(
   wicf_weights,
   "intermediate_output/wicf_weights.RData"

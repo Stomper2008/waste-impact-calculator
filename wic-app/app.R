@@ -66,6 +66,10 @@ weight_vs_impact_chart_data <-
   )
 
 # DATA FOR THE WHERE IMPACTS COME FROM PAGE
+wicf_weight_summaries <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_weight_summaries.RData"
+)
+
 wicf_weights <- readRDS(
   "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_weights.RData"
 )
@@ -225,22 +229,45 @@ ui <-
         ), # close sidebar panel for weights recovery rates & impacts page
         mainPanel(
           width=9,
-          wellPanel(
-            selectInput(
-              inputId="wvi_wasteshed_choice",
-              label="choose a wasteshed",
-              choices=unique(weight_vs_impact_chart_data$wasteshed),
-              selected = "Metro"
+          fluidRow(
+            column(
+              width=4,
+              plotOutput("wrr_chart")
             ),
-            selectInput(
-              inputId="wvi_impact_cat_choice",
-              label="choose an impact category",
-              choices = unique(weight_vs_impact_chart_data$impactCategory),
-              selected="Global warming"
+            column(
+              width=5,
+              plotOutput("wvi_chart")
             )
           ),
-          plotOutput("wrr_chart"),
-          plotOutput("wvi_chart")
+          fluidRow(
+            column(
+              width=3,
+              selectInput(
+                inputId="wvi_wasteshed_choice",
+                label="choose a wasteshed",
+                choices=unique(wicf_weight_summaries$wasteshed),
+                selected = "Metro"
+              )
+            ),
+            column(
+              width=3,
+              selectInput(
+                inputId="wvi_impact_cat_choice",
+                label="choose an impact category",
+                choices = unique(wicf_impacts_net$impactCategory),
+                selected="Global warming"
+              )
+            ),
+            column(
+              width=3,
+              selectInput(
+                inputId="wvi_scenario_choice",
+                label="choose a management scenario",
+                choices=unique(wicf_weight_summaries$scenario),
+                selected="actual"
+              )
+            )
+          )
         ) #close mainpanel for sidebar layout of weights & recovery rates display
         ) # close sidebarlayout
         ), #close weights and recovery rates display
@@ -545,11 +572,16 @@ server <- function(input, output) {
   # generating output for the weight and recovery rate tab
   output$wrr_chart <- renderPlot({
   ggplot()+
-    ggtitle("Weights and recovery rates for materials in the waste stream")+
+    ggtitle("Weights and recovery rates")+
     theme_539()+
     geom_bar(
-      data=masses_eol_by_umbDisp %>% 
-        filter(wasteshed==input$wvi_wasteshed_choice),
+      data=wicf_weights %>% 
+        filter(
+          wasteshed==input$wvi_wasteshed_choice,
+          scenario==input$wvi_scenario_choice,
+          optVariant %in% 
+            c("actual", "dispose_all", input$wvi_impact_cat_choice)
+          ),
       aes(
         x = factor(material, levels=material_sort_order), 
         y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
@@ -557,11 +589,17 @@ server <- function(input, output) {
       stat="identity"
     )+
     geom_text(
-      data=masses_eol_with_rr %>% filter(wasteshed==input$wvi_wasteshed_choice),
+      data=wicf_weight_summaries %>% 
+        filter(
+          wasteshed==input$wvi_wasteshed_choice,
+          scenario==input$wvi_scenario_choice,
+          optVariant %in% 
+            c("actual", "dispose_all", input$wvi_impact_cat_choice)
+        ),
       aes(
         x=material, 
         y=tons,
-        label=percent(round(wb_recovery_rate, 2))
+        label=percent(round(wbrr, 2))
       ),
       hjust=-0.1
     )+
@@ -582,21 +620,26 @@ server <- function(input, output) {
   output$wvi_chart <-
     renderPlot({
       ggplot()+
+        ggtitle("life cycle impacts")+
         theme_539()+
         geom_bar(
           data=
-            weight_vs_impact_chart_data %>%
+            wicf_impacts_net %>%
             filter(
-              (impactCategory=="Weight" | 
-                impactCategory == input$wvi_impact_cat_choice)
-              & wasteshed == input$wvi_wasteshed_choice
+              impactCategory==input$wvi_impact_cat_choice,
+              wasteshed == input$wvi_wasteshed_choice,
+              scenario == input$wvi_scenario_choice,
+              optVariant %in%
+                c("actual", "dispose_all", input$wvi_impact_cat_choice)
             ),
-          aes(x=material, y=pctOfTotal, color=datatype, fill=datatype),
+          aes(
+            x=factor(material, levels=material_sort_order), 
+            y=impact
+            ),
           alpha=0.5,
           stat="identity",
           position="stack"
         )+
-        facet_grid(.~datatype)+
         coord_flip()+
         theme(legend.position = "none")
     })
