@@ -179,10 +179,23 @@ ui <-
     # lay out the introduction page (no drop-down choices)
     tabPanel(
       title="Introduction",
-      "A video will go here, for people who don't like to read.
-      Or perhaps 2 videos -- an introduction to the 
-      idea of a life cycle assessment of the solid waste stream,
-      and then an introduction to how to use the app."
+      sidebarLayout(
+        sidebarPanel(
+          width=3,
+          h2("INTRODUCTION"),
+          h5("WHAT THIS PAGE SHOWS"),
+          "blah blah",
+          h5("WHAT TO LOOK OUT FOR"),
+          "blah blah"
+        ),
+        mainPanel(
+          width=9,
+          "A video will go here, for people who don't like to read.
+          Or perhaps 2 videos -- an introduction to the 
+          idea of a life cycle assessment of the solid waste stream,
+          and then an introduction to how to use the app."
+        )
+      ) # close sidebarlayout for introduction page
     ), #close introduction page
     
     # lay out weights and impacts section
@@ -195,6 +208,7 @@ ui <-
         title="total weight & impacts of the waste stream",
         sidebarLayout(
           sidebarPanel(
+            h1("TOTAL WEIGHT & IMPACTS OF THE WASTE STREAM"),
             width=3,
             h5("WHAT THIS CHART SHOWS"),
             "This chart shows how the waste stream can
@@ -221,6 +235,7 @@ ui <-
         title="weights, recovery rates, & impacts",
         sidebarLayout(
         sidebarPanel(
+          h1("WEIGHTS, RECOVERY RATES, & IMPACTS"),
           width=3,
           h5("WHAT THIS PAGE SHOWS"),
           "blah blah",
@@ -277,6 +292,7 @@ ui <-
           title="where impacts come from",
           sidebarLayout(
             sidebarPanel(
+              h1("WHERE IMPACTS COME FROM"),
               width=3,
               h5("WHAT THIS SHOWS"),
               "The impact chart on the right 
@@ -354,6 +370,7 @@ ui <-
             title="Impact intensities",  
           sidebarLayout(
             sidebarPanel(
+              h1("IMPACT INTENSITIES"),
             width=3,
             h5("WHAT THIS CHART SHOWS"),
             "This chart makes it easier to evaluate impacts for 
@@ -403,7 +420,20 @@ ui <-
         # lay out impact disproportionality page        
         tabPanel(
           title="impact disporportionality",
-          "blah blah blah"
+          sidebarLayout(
+            sidebarPanel(
+              width=3,
+              h1("IMPACT DISPROPORTIONALITY"),
+              h5("WHAT THIS CHART SHOWS"),
+              "blah blah",
+              h5("WHAT TO LOOK OUT FOR"),
+              "blah blah"
+            ),
+            mainPanel(
+              width=9,
+              "blah blah"
+            ) 
+          ) # close sidebar layout for impact disprortionality page
         ) # end impact disproportionality page
         
         ), #end impact hotspots section
@@ -416,7 +446,7 @@ ui <-
           title="recycling and its limits (ARR)",
           sidebarLayout(
             sidebarPanel(
-              h2("Recycling and its limits"),
+              h1("RECYCLING AND ITS LIMITS"),
               width=3,
               wellPanel(
                 h5("WHAT THIS PAGE SHOWS"),
@@ -470,6 +500,7 @@ ui <-
         sidebarLayout(
         sidebarPanel(
           width=3,
+          h1("RECYCLING VS. REDUCTION"),
           wellPanel(
             h4("WHAT THIS PAGE SHOWS"),
             "blah blah"
@@ -486,74 +517,97 @@ ui <-
 
       tabPanel(
         title="strategy chart",
-        "put evolving strategy chart here, where there is the 
+        sidebarLayout(
+          sidebarPanel(
+            width=3,
+            h1("STRATEGY CHART"),
+            "blah blah"
+          ),
+          mainPanel(
+            "put evolving strategy chart here, where there is the 
         radial strategy chart, and you can add things to it by 
-        clicking on individual materials and/or impact categories."
-      )
-
+            clicking on individual materials and/or impact categories."
+          )
+        ) # close sidebar layout for strategy chart page
+      ) # close tabpanel for strategy chart page
+      
       ), # close navbar menu for the ways to reduce impacts section
       
-      # ui for the "enter your own" tab
+      # ui for the "enter your own" page
+      # (this section is unusual in that it has its own tabset)
       tabPanel(
         title="Enter your own waste",
-        fluidRow(
-          column(
-            5,
-            wellPanel(
-              h3("Enter your solid waste data"),
-              DTOutput("x1")
-            ),
-            wellPanel(
-              h3("Download results"),
-              downloadButton(
-                outputId="fe_summaryOfTonsAndImpactsFile",
-                label="summary of weight and impacts"
-              ),
-              downloadButton(
-                outputId="fe_impactDetailsFile",
-                label="impact calculation details"
-              ),
-              downloadButton(
-                outputId="fe_formattedReport",
-                label="nicely formatted report"
-              )
+        sidebarLayout(
+          sidebarPanel(
+            width=3,
+            h1("ENTER YOUR OWN WASTE"),
+            "blah blah",
+            selectInput(
+              inputId="fe_ImpactCategoryChoice",
+              label=h3("Choose your impact category"),
+              choices = unique(impact_factors$impactCategory),
+              selected="Energy demand",
+              width="100%"
             )
           ),
-          column(
-            6,
-            selectInput(
-                inputId="fe_ImpactCategoryChoice",
-                label=h3("Choose your impact category"),
-                choices = unique(impact_factors$impactCategory),
-                selected="Energy demand",
-                width="100%"
-            ),
-            fluidRow(
+          mainPanel(
+            tabsetPanel(
+              tabPanel(
+                title="enter your data",
+                h3("Enter your solid waste data"),
+                DTOutput("x1"),
+                h3("Download results"),
+                downloadButton(
+                  outputId="fe_summaryOfTonsAndImpactsFile",
+                  label="summary of weight and impacts"
+                ),
+                downloadButton(
+                  outputId="fe_impactDetailsFile",
+                  label="impact calculation details"
+                ),
+                downloadButton(
+                  outputId="fe_formattedReport",
+                  label="nicely formatted report"
+                )
+              ), # close enter your own data tab
+
+            tabPanel(
+              title="Total results",
               column(
-                3,
-                h3("Weights"),
+                width=6,
                 plotOutput("x5") #weight chart
               ),
               column(
-                3,
-                offset=3,
-                h3("Impacts"),
+                width=6,
                 plotOutput("x6") #impact chart
               )
+            ),
+            
+            tabPanel(
+              title="Detailed results",
+              h3("Your data with impacts"),
+              DTOutput("x4")
             )
-          )
-        ),
-        fluidRow(
-          h3("Your data with impacts"),
-          DTOutput("x4")
-        )
+          
+          ) # close tabset panel for enter your own page  
+          ) # close mainpanel for enter your own page
+        ) # close sidebarlayout for enter your own page
       ), # close tabPanel "Enter your own"
     
     # defining ui for the documentation page
     tabPanel(
       title="Documentation",
-      "Links to pdf documents will go here."
-    )
+      sidebarLayout(
+        sidebarPanel(
+          width=3,
+          h1("DOCUMENTATION"),
+          "blah blah"
+        ),
+        mainPanel(
+          "Links to pdf documents will go here."
+        ) # close mainpanel for documentation page
+      ) # close sidebar layout for documentation page
+    ) # close tabPanel for documentation page
 ) #close navbarpage
 
 # end ui definition
@@ -968,10 +1022,9 @@ server <- function(input, output) {
         stat="identity",
         position="stack"
       )+
+      coord_flip()+
       theme(legend.position="bottom")
-    },
-    height=500,
-    width=375
+    }
     ) 
   
   # summing impacts, for the impacts chart
@@ -1058,10 +1111,9 @@ server <- function(input, output) {
       shape=21,
       size=10,
       fill="orange"
-    )
-  },
-  height=500,
-  width=375
+    )+
+    coord_flip()
+  }
   )  # close renderPlot
   
   # create the file output
