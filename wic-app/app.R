@@ -1,7 +1,29 @@
 # file app.R
 # working draft of waste impact calculator app
 
-# load packages
+# GENERAL SETUP OF THIS CODE
+# The app is layed out as a web site with a navigation
+# bar across the top, with drop-down options under each
+# navigation bar entry.
+
+# Each navigation bar entry and/or drop-down option corresponds
+# to a full-page web display.  E.g. the "weights & impacts" 
+# navigation bar leads to several pages, for example one 
+# called "where impacts come from."
+
+# The code mostly follows this structure.  Within 3 sections
+# of code (SETUP, UI, and SERVER), it tries to keep objects
+# and procedures arranged by page display, more or less in the
+# order of the navbar entries and drop-down options.
+
+# Objects associated with a particular page display are named
+# using a prefix to help distinguish them.  E.g. objects 
+# associated with the "where impacts come from" page display
+# have a prefix "wcif", e.g. "wcif_weight_data".
+
+# SETUP SECTION
+
+# load packages 
 library(shiny)
 library(tidyverse)
 library(ggthemes)
@@ -16,11 +38,14 @@ source(file="../oregon_deq/resources/theme_539.R")
 # importing impact factor data
 impact_factors <-
   readRDS(
-    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors.Rdata"
   ) %>%
+  # readRDS(
+  #   "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors_deq.Rdata"
+  # ) %>%
   as.data.frame()
 
-# DATA SPECIFIC TO THE WEIGHT AND RECOVERY RATE TAB
+# DATA SPECIFIC TO THE WEIGHT AND RECOVERY RATE PAGE
 
 masses_eol_by_umbDisp <- readRDS(
   "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/masses_eol_by_umbDisp.RData"
@@ -39,6 +64,21 @@ weight_vs_impact_chart_data <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/weight_vs_impact_chart_data.RData"
   )
+
+# DATA FOR THE WHERE IMPACTS COME FROM PAGE
+wicf_weight_summaries <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_weight_summaries.RData"
+)
+
+wicf_weights <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_weights.RData"
+)
+wicf_impacts_net <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_impacts_net.RData"
+)
+wicf_impacts_by_lcstage <- readRDS(
+  "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/wicf_impacts_by_lcstage.RData"
+)
 
 # DATA FOR THE HEATMAP PAGE
 # getting the weight portion flipped
@@ -75,7 +115,7 @@ hm_14b <-
   hm_13 %>% 
   select(impactCategory, wasteshed, material, proportionateness)
 
-# DATA SPECIFIC TO RECYCLING VS. REDUCTION TAB
+# DATA SPECIFIC TO THE "RECYCLING AND ITS LIMITS" PAGE
 arr_summary_data_1 <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/arr_summary_data_1.RData"
@@ -139,10 +179,23 @@ ui <-
     # lay out the introduction page (no drop-down choices)
     tabPanel(
       title="Introduction",
-      "A video will go here, for people who don't like to read.
-      Or perhaps 2 videos -- an introduction to the 
-      idea of a life cycle assessment of the solid waste stream,
-      and then an introduction to how to use the app."
+      sidebarLayout(
+        sidebarPanel(
+          width=3,
+          h2("INTRODUCTION"),
+          h5("WHAT THIS PAGE SHOWS"),
+          "blah blah",
+          h5("WHAT TO LOOK OUT FOR"),
+          "blah blah"
+        ),
+        mainPanel(
+          width=9,
+          "A video will go here, for people who don't like to read.
+          Or perhaps 2 videos -- an introduction to the 
+          idea of a life cycle assessment of the solid waste stream,
+          and then an introduction to how to use the app."
+        )
+      ) # close sidebarlayout for introduction page
     ), #close introduction page
     
     # lay out weights and impacts section
@@ -155,6 +208,7 @@ ui <-
         title="total weight & impacts of the waste stream",
         sidebarLayout(
           sidebarPanel(
+            h1("TOTAL WEIGHT & IMPACTS OF THE WASTE STREAM"),
             width=3,
             h5("WHAT THIS CHART SHOWS"),
             "This chart shows how the waste stream can
@@ -181,6 +235,7 @@ ui <-
         title="weights, recovery rates, & impacts",
         sidebarLayout(
         sidebarPanel(
+          h1("WEIGHTS, RECOVERY RATES, & IMPACTS"),
           width=3,
           h5("WHAT THIS PAGE SHOWS"),
           "blah blah",
@@ -189,22 +244,45 @@ ui <-
         ), # close sidebar panel for weights recovery rates & impacts page
         mainPanel(
           width=9,
-          wellPanel(
-            selectInput(
-              inputId="wvi_wasteshed_choice",
-              label="choose a wasteshed",
-              choices=unique(weight_vs_impact_chart_data$wasteshed),
-              selected = "Metro"
+          fluidRow(
+            column(
+              width=4,
+              plotOutput("wrr_chart")
             ),
-            selectInput(
-              inputId="wvi_impact_cat_choice",
-              label="choose an impact category",
-              choices = unique(weight_vs_impact_chart_data$impactCategory),
-              selected="Global warming"
+            column(
+              width=5,
+              plotOutput("wvi_chart")
             )
           ),
-          plotOutput("wrr_chart"),
-          plotOutput("wvi_chart")
+          fluidRow(
+            column(
+              width=3,
+              selectInput(
+                inputId="wvi_wasteshed_choice",
+                label="choose a wasteshed",
+                choices=unique(wicf_weight_summaries$wasteshed),
+                selected = "Metro"
+              )
+            ),
+            column(
+              width=3,
+              selectInput(
+                inputId="wvi_impact_cat_choice",
+                label="choose an impact category",
+                choices = unique(wicf_impacts_net$impactCategory),
+                selected="Global warming"
+              )
+            ),
+            column(
+              width=3,
+              selectInput(
+                inputId="wvi_scenario_choice",
+                label="choose a management scenario",
+                choices=unique(wicf_weight_summaries$scenario),
+                selected="actual"
+              )
+            )
+          )
         ) #close mainpanel for sidebar layout of weights & recovery rates display
         ) # close sidebarlayout
         ), #close weights and recovery rates display
@@ -214,16 +292,71 @@ ui <-
           title="where impacts come from",
           sidebarLayout(
             sidebarPanel(
+              h1("WHERE IMPACTS COME FROM"),
               width=3,
               h5("WHAT THIS SHOWS"),
-              "blah",
-              h5("WHAT IT MEANS"),
-              "blah"
+              "The impact chart on the right 
+              shows how net life cycle impacts 
+              of materials are calculated.  The net 
+              impact (the heavy black lines) are the sum of impacts
+              for the life cycle stages of production, end-of-life 
+              transport, and end-of-life treatment.  If there 
+              has been recycling or other recovery activity, 
+              then the end-of-life impact may be negative, which
+              lowers the net impact.  You can try changing the 
+              management scenario to see if increasing 
+              disposal or recovery will substantially change the 
+              net impacts.",
+              h5("WHAT TO LOOK OUT FOR"),
+              "A bit of experimenting with this chart and its 
+              options will start to suggest several things.  
+              First, the great bulk of impacts associated with 
+              materials come from production. Recycling activity 
+              usually reduces those impacts but can't entirely
+              eliminate them.  Second, end-of-life transportation 
+              impacts are usually relatively small."
             ),
             mainPanel(
               width=9,
-              "chart of impacts by life cycle stage",
-              "perhaps with option for optimal scenario?"
+              fluidRow(
+                column(
+                  width=4,
+                  plotOutput("wicf_weight_chart")
+                ),
+                column(
+                  width=5,
+                  plotOutput("wicf_impact_chart")
+                )
+              ),
+              fluidRow(
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="wicf_wasteshed_choice",
+                    label="choose a wasteshed",
+                    selected="Metro",
+                    choices=unique(wicf_weights$wasteshed)
+                  )
+                ),
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="wicf_impactCategory_choice",
+                    label="choose an impact category",
+                    selected="Smog",
+                    choices=unique(wicf_impacts_net$impactCategory)
+                  )
+                ),
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="wicf_scenario_choice",
+                    label="choose a management scenario",
+                    selected="actual",
+                    choices=unique(wicf_impacts_net$scenario)
+                  )
+                )
+              )
             ) #close mainpanel of sidebarlayout for weights vs impacts display
           ) #close sidebarlayout for weights vs. impacts display
         ) # close tabPanel for weights vs. impacts display
@@ -237,6 +370,7 @@ ui <-
             title="Impact intensities",  
           sidebarLayout(
             sidebarPanel(
+              h1("IMPACT INTENSITIES"),
             width=3,
             h5("WHAT THIS CHART SHOWS"),
             "This chart makes it easier to evaluate impacts for 
@@ -286,7 +420,20 @@ ui <-
         # lay out impact disproportionality page        
         tabPanel(
           title="impact disporportionality",
-          "blah blah blah"
+          sidebarLayout(
+            sidebarPanel(
+              width=3,
+              h1("IMPACT DISPROPORTIONALITY"),
+              h5("WHAT THIS CHART SHOWS"),
+              "blah blah",
+              h5("WHAT TO LOOK OUT FOR"),
+              "blah blah"
+            ),
+            mainPanel(
+              width=9,
+              "blah blah"
+            ) 
+          ) # close sidebar layout for impact disprortionality page
         ) # end impact disproportionality page
         
         ), #end impact hotspots section
@@ -296,18 +443,67 @@ ui <-
         title="Ways to reduce impacts",
         
         tabPanel(
-          title="recycling and its limits (ARR)"
-        ),
+          title="recycling and its limits (ARR)",
+          sidebarLayout(
+            sidebarPanel(
+              h1("RECYCLING AND ITS LIMITS"),
+              width=3,
+              wellPanel(
+                h5("WHAT THIS PAGE SHOWS"),
+                "blah blah",
+                textOutput("arr_statement")
+              ),
+              wellPanel(
+                h5("WHAT IT MEANS"),
+                "blah blah"
+              )
+            ), # close sidebarpanel for "recycling and its limits"
+            mainPanel(
+              fluidRow(
+                column(
+                  width=4,
+                  h3("weights for three management scenarios"),
+                  plotOutput("arr_weight_chart")
+                ),
+                column(
+                  width=5,
+                  h3("impacts for those same scenarios"),
+                  plotOutput("arr_impact_chart")
+                )
+              ), # close fluidRow
+              fluidRow(
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="arr_wasteshed_choice",
+                    label="choose a wasteshed",
+                    choices = unique(arr_summary_data_1$wasteshed),
+                    selected = "Metro"
+                  )
+                ),
+                column(
+                  width=3,
+                  selectInput(
+                    inputId="arr_impactCategory_choice",
+                    label="choose an impact category",
+                    choices= unique(arr_summary_data_1$impactCategory),
+                    selected="Smog"
+                  )
+                )
+              ) # close fluidRow
+            ) # close mainpanel for "recycling and its limits (ARR)"
+          ) # close sidebarlayout for "recycling and its limits (ARR)"
+        ), # close tabPanel for "reycling and its limits (ARR)" page
         
         tabPanel(
         title="recycling vs. reduction",
         sidebarLayout(
         sidebarPanel(
           width=3,
+          h1("RECYCLING VS. REDUCTION"),
           wellPanel(
             h4("WHAT THIS PAGE SHOWS"),
-            "blah blah",
-            textOutput("rvr_statement")
+            "blah blah"
           ),
           wellPanel(
             h4("WHAT IT MEANS"),
@@ -315,136 +511,103 @@ ui <-
           )
         ), # close sidebarPanel
         mainPanel(
-        fluidRow(
-          column(
-            width=6,
-#            "weight chart with labels goes here",
-            plotOutput("rvr_weight_chart")
-            # ,
-            # tableOutput("rvr_weight_table"),
-            # tableOutput("rvr_weight_table_alt")
-            ),
-          column(
-            width=6,
-#            "impact chart without labels goes here",
-            plotOutput("rvr_impact_chart")
-            # ,
-            # tableOutput("rvr_impact_table"),
-            # tableOutput("rvr_impact_table_alt")
-          )
-        ),
-      # fluidRow(
-      #   tableOutput("rvr_impact_model_table")
-      # ),
-      fluidRow(
-        wellPanel(
-          selectInput(
-            inputId = "rvr_wasteshed_choice",
-            label = "choose a wasteshed",
-            choices = unique(arr_summary_data_1$wasteshed),
-            selected = "Benton"
-          ),
-          selectInput(
-            inputId = "rvr_impactCategory_choice",
-            label = "choose an impact category and standard",
-            choices = unique(arr_summary_data_1$impactCategory),
-            selected = "Global warming"
-          )
-        ),# close wellPanel
-        wellPanel(
-          h4("YOUR MANAGEMENT SCENARIO"),
-          sliderInput(
-            inputId="rvr_wbrr",
-            label="your weight-based recovery rate (%)",
-            min = 0, 
-            max = 100,
-            value=0, 
-            step = 2
-          ),
-          sliderInput(
-            inputId="rvr_wbrdr",
-            label="reduce waste generation to (%)",
-            min=0,
-            max=150,
-            value=100,
-            step=2
-          )
-        ) # close wellPanel
-      )
       ) # close mainpanel
       )  # close sidebarLayout
       ),  # close the page layout
 
       tabPanel(
         title="strategy chart",
-        "put evolving strategy chart here, where there is the 
+        sidebarLayout(
+          sidebarPanel(
+            width=3,
+            h1("STRATEGY CHART"),
+            "blah blah"
+          ),
+          mainPanel(
+            "put evolving strategy chart here, where there is the 
         radial strategy chart, and you can add things to it by 
-        clicking on individual materials and/or impact categories."
-      )
-
+            clicking on individual materials and/or impact categories."
+          )
+        ) # close sidebar layout for strategy chart page
+      ) # close tabpanel for strategy chart page
+      
       ), # close navbar menu for the ways to reduce impacts section
       
-      # ui for the "enter your own" tab
+      # ui for the "enter your own" page
+      # (this section is unusual in that it has its own tabset)
       tabPanel(
         title="Enter your own waste",
-        fluidRow(
-          column(
-            5,
-            wellPanel(
-              h3("Enter your solid waste data"),
-              DTOutput("x1")
-            ),
-            wellPanel(
-              h3("Download results"),
-              downloadButton(
-                outputId="fe_summaryOfTonsAndImpactsFile",
-                label="summary of weight and impacts"
-              ),
-              downloadButton(
-                outputId="fe_impactDetailsFile",
-                label="impact calculation details"
-              ),
-              downloadButton(
-                outputId="fe_formattedReport",
-                label="nicely formatted report"
-              )
+        sidebarLayout(
+          sidebarPanel(
+            width=3,
+            h1("ENTER YOUR OWN WASTE"),
+            "blah blah",
+            selectInput(
+              inputId="fe_ImpactCategoryChoice",
+              label=h3("Choose your impact category"),
+              choices = unique(impact_factors$impactCategory),
+              selected="Energy demand",
+              width="100%"
             )
           ),
-          column(
-            6,
-            selectInput(
-                inputId="fe_ImpactCategoryChoice",
-                label=h3("Choose your impact category"),
-                choices = unique(impact_factors$impactCategory),
-                selected="Energy demand",
-                width="100%"
-            ),
-            fluidRow(
+          mainPanel(
+            tabsetPanel(
+              tabPanel(
+                title="enter your data",
+                h3("Enter your solid waste data"),
+                DTOutput("x1"),
+                h3("Download results"),
+                downloadButton(
+                  outputId="fe_summaryOfTonsAndImpactsFile",
+                  label="summary of weight and impacts"
+                ),
+                downloadButton(
+                  outputId="fe_impactDetailsFile",
+                  label="impact calculation details"
+                ),
+                downloadButton(
+                  outputId="fe_formattedReport",
+                  label="nicely formatted report"
+                )
+              ), # close enter your own data tab
+
+            tabPanel(
+              title="Total results",
               column(
-                3,
-                h3("Weights"),
+                width=6,
                 plotOutput("x5") #weight chart
               ),
               column(
-                3,
-                offset=3,
-                h3("Impacts"),
+                width=6,
                 plotOutput("x6") #impact chart
               )
+            ),
+            
+            tabPanel(
+              title="Detailed results",
+              h3("Your data with impacts"),
+              DTOutput("x4")
             )
-          )
-        ),
-        fluidRow(
-          h3("Your data with impacts"),
-          DTOutput("x4")
-        )
+          
+          ) # close tabset panel for enter your own page  
+          ) # close mainpanel for enter your own page
+        ) # close sidebarlayout for enter your own page
       ), # close tabPanel "Enter your own"
     
     # defining ui for the documentation page
     tabPanel(
       title="Documentation",
-      "Links to pdf documents will go here."
-    )
+      sidebarLayout(
+        sidebarPanel(
+          width=3,
+          h1("DOCUMENTATION"),
+          "blah blah"
+        ),
+        mainPanel(
+          "Links to pdf documents will go here."
+        ) # close mainpanel for documentation page
+      ) # close sidebar layout for documentation page
+    ) # close tabPanel for documentation page
 ) #close navbarpage
 
 # end ui definition
@@ -455,11 +618,16 @@ server <- function(input, output) {
   # generating output for the weight and recovery rate tab
   output$wrr_chart <- renderPlot({
   ggplot()+
-    ggtitle("Weights and recovery rates for materials in the waste stream")+
+    ggtitle("Weights and recovery rates")+
     theme_539()+
     geom_bar(
-      data=masses_eol_by_umbDisp %>% 
-        filter(wasteshed==input$wvi_wasteshed_choice),
+      data=wicf_weights %>% 
+        filter(
+          wasteshed==input$wvi_wasteshed_choice,
+          scenario==input$wvi_scenario_choice,
+          optVariant %in% 
+            c("actual", "dispose_all", input$wvi_impact_cat_choice)
+          ),
       aes(
         x = factor(material, levels=material_sort_order), 
         y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
@@ -467,11 +635,17 @@ server <- function(input, output) {
       stat="identity"
     )+
     geom_text(
-      data=masses_eol_with_rr %>% filter(wasteshed==input$wvi_wasteshed_choice),
+      data=wicf_weight_summaries %>% 
+        filter(
+          wasteshed==input$wvi_wasteshed_choice,
+          scenario==input$wvi_scenario_choice,
+          optVariant %in% 
+            c("actual", "dispose_all", input$wvi_impact_cat_choice)
+        ),
       aes(
         x=material, 
         y=tons,
-        label=percent(round(wb_recovery_rate, 2))
+        label=percent(round(wbrr, 2))
       ),
       hjust=-0.1
     )+
@@ -492,24 +666,108 @@ server <- function(input, output) {
   output$wvi_chart <-
     renderPlot({
       ggplot()+
+        ggtitle("life cycle impacts")+
         theme_539()+
         geom_bar(
           data=
-            weight_vs_impact_chart_data %>%
+            wicf_impacts_net %>%
             filter(
-              (impactCategory=="Weight" | 
-                impactCategory == input$wvi_impact_cat_choice)
-              & wasteshed == input$wvi_wasteshed_choice
+              impactCategory==input$wvi_impact_cat_choice,
+              wasteshed == input$wvi_wasteshed_choice,
+              scenario == input$wvi_scenario_choice,
+              optVariant %in%
+                c("actual", "dispose_all", input$wvi_impact_cat_choice)
             ),
-          aes(x=material, y=pctOfTotal, color=datatype, fill=datatype),
+          aes(
+            x=factor(material, levels=material_sort_order), 
+            y=impact
+            ),
           alpha=0.5,
           stat="identity",
           position="stack"
         )+
-        facet_grid(.~datatype)+
         coord_flip()+
         theme(legend.position = "none")
     })
+  
+  # generating output for the where impacts come from page
+
+  output$wicf_weight_chart <- renderPlot({
+    ggplot()+
+    theme_539()+
+    ggtitle("Weight chart")+
+    geom_bar(
+      data=
+        wicf_weights %>%
+        filter(
+          wasteshed==input$wicf_wasteshed_choice,
+          scenario==input$wicf_scenario_choice,
+          optVariant %in% 
+            c("actual", "dispose_all", 
+              input$wicf_impactCategory_choice
+              )
+        ),
+      aes(
+        x=material,
+        y=tons,
+        color=umbDisp,
+        fill=umbDisp,
+        alpha=umbDisp
+      ),
+      stat="identity",
+      position="stack"
+    ) +
+    coord_flip()
+  }
+  ) # close plot definition for wicf_weight_chart
+
+  output$wicf_impact_chart <- renderPlot({  
+    ggplot()+
+    theme_539()+
+    ggtitle("impact chart")+
+    geom_bar(
+      data=
+        wicf_impacts_by_lcstage %>%
+        filter(
+          wasteshed==input$wicf_wasteshed_choice,
+          scenario==input$wicf_scenario_choice,
+          optVariant %in% c(
+            "actual", "dispose_all", input$wicf_impactCategory_choice
+          ),
+          impactCategory==input$wicf_impactCategory_choice
+        ),
+      aes(
+        x=factor(material, levels=material_sort_order),
+        y=impact,
+        color=LCstage,
+        fill=LCstage
+      ),
+      stat="identity",
+      position="stack",
+      alpha=0.3
+    )+
+    geom_bar(
+      data=
+        wicf_impacts_net %>%
+        filter(
+          wasteshed==input$wicf_wasteshed_choice,
+          scenario==input$wicf_scenario_choice,
+          optVariant %in% c(
+            "actual", "dispose_all", input$wicf_impactCategory_choice
+          ),
+          impactCategory==input$wicf_impactCategory_choice
+        ),
+      aes(
+        x=material,
+        y=impact
+      ),
+      color="black",
+      fill=NA,
+      size=2,
+      stat="identity"
+    )+
+    coord_flip()
+  }) # close definition of wicf_impact_chart
   
   # REACTIVE OBJECTS FOR THE HEATMAP PAGE
   # second try: make a plotly heatmap from input-filtered data
@@ -554,113 +812,64 @@ server <- function(input, output) {
       )
     )
   
-  # GENERATING OUTPUT FOR THE RECYCLING VS REDUCTION TAB
+  # generating output objects for the 
+  # recycling and its limits (ARR) page
   
-  rvr_weight_data <- reactive({
+  arr_weight_data <- reactive({
     arr_summary_data_2 %>% 
       filter(
-        wasteshed==input$rvr_wasteshed_choice &
+        wasteshed==input$arr_wasteshed_choice &
         optVariant %in% 
-          c("actual", "dispose_all", input$rvr_impactCategory_choice)
+          c("actual", "dispose_all", input$arr_impactCategory_choice)
       )
   })
   
-  rvr_weight_total <- reactive({
+  arr_weight_total <- reactive({
     sum(
-      filter(rvr_weight_data(), optVariant=="actual")$tons
+      filter(arr_weight_data(), optVariant=="actual")$tons
     )
   })
   
-  rvr_weight_data_alt <- reactive({
-    rvr_weight_data() %>%
-    mutate(
-      scenario=ifelse(scenario=="optimal", "your own", optVariant),
-      scenario=factor(
-        scenario, 
-        levels=rev(c("dispose_all", "actual", "your own"))
-      ),
-      tons=case_when(
-        scenario=="your own" & umbDisp=="recovery" ~
-          rvr_weight_total()*(input$rvr_wbrr/100)*
-          (input$rvr_wbrdr/100),
-        scenario=="your own" & umbDisp=="disposal" ~
-          rvr_weight_total()*(1-(input$rvr_wbrr/100))*
-          (input$rvr_wbrdr/100),
-        TRUE ~ tons
-      )
-    )
-  })
-  
-  rvr_impact_data <- reactive({
+  arr_impact_data <- reactive({
     arr_summary_data_3 %>%
       filter(
-        wasteshed==input$rvr_wasteshed_choice &
+        wasteshed==input$arr_wasteshed_choice &
           optVariant %in% 
-          c("actual", "dispose_all", input$rvr_impactCategory_choice) &
-        impactCategory==input$rvr_impactCategory_choice
+          c("actual", "dispose_all", input$arr_impactCategory_choice) &
+          impactCategory==input$arr_impactCategory_choice
       )
   })
   
-  rvr_impact_model <- reactive({
-    arr_summary_data_1 %>%
-    filter(
-      wasteshed==input$rvr_wasteshed_choice & 
-      impactCategory==input$rvr_impactCategory_choice
-    )
-  })
-  
-  output$rvr_impact_model_table <-
-    renderTable(rvr_impact_model())
-  
-  rvr_impact_data_alt <- reactive({
-    rvr_impact_data() %>%
-    mutate(
-      scenario=ifelse(scenario=="optimal", "your own", optVariant),
-      scenario=factor(
-        scenario, 
-        levels=rev(c("dispose_all", "actual", "your own"))
-      ),
-      impact=ifelse(
-        scenario=="your own",
-        (input$rvr_wbrdr/100)*
-        (rvr_impact_model()$rr_intercept +
-          rvr_impact_model()$rr_slope*(input$rvr_wbrr/100)),
-        impact
-      )
-    )
-  })
-  
-  output$rvr_statement <- 
+  output$arr_statement <- 
     renderText({
       paste("For the ", 
-            input$rvr_wasteshed_choice, 
+            input$arr_wasteshed_choice, 
             " wasteshed, the weight-based recovery rate is ",
             round(filter(arr_summary_data_1, 
-                    wasteshed==input$rvr_wasteshed_choice,
-                    impactCategory==input$rvr_impactCategory_choice)
+                    wasteshed==input$arr_wasteshed_choice,
+                    impactCategory==input$arr_impactCategory_choice)
              $wb_rr, 2),
             ".  That recovery reduces life cycle ",
             (filter(arr_summary_data_1, 
-                    wasteshed==input$rvr_wasteshed_choice,
-                    impactCategory==input$rvr_impactCategory_choice)
+                    wasteshed==input$arr_wasteshed_choice,
+                    impactCategory==input$arr_impactCategory_choice)
             )$impactCategory,
             " impacts by ",
             round((filter(arr_summary_data_1, 
-                    wasteshed==input$rvr_wasteshed_choice,
-                    impactCategory==input$rvr_impactCategory_choice)
+                    wasteshed==input$arr_wasteshed_choice,
+                    impactCategory==input$arr_impactCategory_choice)
             )$curr_impact_reduction, 2),
             ".",
             sep=""
             )
     })
   
-  
-  output$rvr_weight_chart <-
+  output$arr_weight_chart <-
     renderPlot({
       ggplot()+
       theme_539()+
       geom_bar(
-        data=rvr_weight_data_alt(),
+        data=arr_weight_data(),
         aes(
           x=scenario, y=tons, 
           color=scenario, fill=scenario, alpha=umbDisp
@@ -673,16 +882,11 @@ server <- function(input, output) {
       theme(legend.position="none")
     })
   
-  output$rvr_weight_table <-
-    renderTable(rvr_weight_data())
-  output$rvr_weight_table_alt <-
-    renderTable(rvr_weight_data_alt())
-  
-  output$rvr_impact_chart <- renderPlot({
+  output$arr_impact_chart <- renderPlot({
     ggplot()+
     theme_539()+
     geom_bar(
-      data=rvr_impact_data_alt(),
+      data=arr_impact_data(),
       aes(
         x=scenario, y=impact, color=scenario, fill=scenario),
       stat="identity",
@@ -694,10 +898,6 @@ server <- function(input, output) {
     )
   })
   
-  output$rvr_impact_table <-
-    renderTable(rvr_impact_data())
-  output$rvr_impact_table_alt <-
-    renderTable(rvr_impact_data_alt())
 
   # REACTIVE OBJECTS AND OUTPUTS FOR THE ENTER-YOUR-OWN PAGE  
   output$x1 <- 
@@ -822,10 +1022,9 @@ server <- function(input, output) {
         stat="identity",
         position="stack"
       )+
+      coord_flip()+
       theme(legend.position="bottom")
-    },
-    height=500,
-    width=375
+    }
     ) 
   
   # summing impacts, for the impacts chart
@@ -912,10 +1111,9 @@ server <- function(input, output) {
       shape=21,
       size=10,
       fill="orange"
-    )
-  },
-  height=500,
-  width=375
+    )+
+    coord_flip()
+  }
   )  # close renderPlot
   
   # create the file output

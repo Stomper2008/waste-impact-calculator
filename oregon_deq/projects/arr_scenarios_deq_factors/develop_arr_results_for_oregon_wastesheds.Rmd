@@ -799,7 +799,7 @@ impacts_arr_selected_source_data <-
 impacts_arr_sums_for_chart <-
   summarise(
     group_by(
-      impacts_arr_selected_source_data, 
+      impacts_arr_selected_source_data,
       wasteshed, impactCategory, impactUnits, optVariant, scenario
     ),
     impact=sum(impact)
@@ -891,27 +891,27 @@ arr_model_coeff <-
 
 now making a plot
 ```{r}
-ggplot()+
-  ggtitle("test ARR impact plot")+
-  theme_539()+
-  geom_bar(
-    data=arr_model_maker,
-    aes(x=scenario, y=impact),
-    stat="identity"
-  )+
-  facet_wrap(wasteshed~impactCategory, scales="free")
-ggplot()+
-  ggtitle("test ARR trend plot")+
-  theme_539()+
-  geom_point(
-    data=arr_model_maker,
-    aes(x=rr, y=impact,  fill=scenario, color=scenario)
-  )+
-  geom_abline(
-    data=arr_model_coeff,
-    aes(intercept=rr_intercept, slope=rr_slope)
-  )+
-  facet_wrap(wasteshed~impactCategory, scales="free")
+#ggplot()+
+#  ggtitle("test ARR impact plot")+
+  # theme_539()+
+  # geom_bar(
+#     data=arr_model_maker,
+#     aes(x=scenario, y=impact),
+#     stat="identity"
+#   )+
+#   facet_wrap(wasteshed~impactCategory, scales="free")
+# ggplot()+
+#   ggtitle("test ARR trend plot")+
+#   theme_539()+
+#   geom_point(
+#     data=arr_model_maker,
+#     aes(x=rr, y=impact,  fill=scenario, color=scenario)
+#   )+
+#   geom_abline(
+#     data=arr_model_coeff,
+#     aes(intercept=rr_intercept, slope=rr_slope)
+#   )+
+#  facet_wrap(wasteshed~impactCategory, scales="free")
 ```
 
 I haven't checked any of the numbers, but I am going to move on to writing some of the output data files for use in the app.
@@ -976,4 +976,140 @@ Now the thing is, to make the presentation in the app as clear as possible.
 Maybe extremely simple charts... like a single bar chart to express amounts recovered and disposed... paired with a single bar chart to express life cycle impacts and impacts reduced.
 
 Maybe then I could make a "scenario" bar where the user attempts to change impacts by reducing or recovering.
-Or, large bull
+
+## Chart to express where impacts come from under all three scenarios
+
+Prefix: wicf
+
+So on left side of screen I would have weights for the wasteshed, material, and scenario.
+
+On the right side of the screen I would have impacts by for the wasteshed, material, and scenario BY LC STAGE.
+
+
+```{r}
+wicf_impacts_by_lcstage <-
+  summarise(
+    group_by(
+      impacts_arr_selected_source_data,
+      wasteshed, impactCategory, impactUnits, optVariant, scenario,
+      material, LCstage
+    ),
+    impact=sum(impact)
+  ) %>%
+  ungroup()
+
+wicf_impacts_net <-
+  summarise(
+    group_by(
+      wicf_impacts_by_lcstage,
+      wasteshed, impactCategory, impactUnits, optVariant, scenario,
+      material
+    ),
+    impact=sum(impact)
+  ) %>%
+  ungroup()
+
+wicf_weights <-
+  impacts_arr_selected_source_data %>%
+  filter(LCstage=="endOfLife") %>%
+  select(year, wasteshed, material, disposition, tons, 
+         umbDisp, scenario, optVariant) %>%
+  unique() %>%
+  mutate(
+    material=factor(material, levels=material_sort_order),
+    umbDisp=factor(umbDisp, levels=c("disposal", "recovery"))
+  )
+
+wicf_weight_summaries <-
+  wicf_weights %>%
+  mutate(recoveredTons=ifelse(umbDisp=="recovery", tons,0)) %>%
+  group_by(year, wasteshed, material, scenario, optVariant) %>%
+  summarise(
+    tons=sum(tons),
+    recoveredTons=sum(recoveredTons)
+  ) %>%
+  ungroup() %>%
+  mutate(wbrr=recoveredTons/tons)
+
+# output these for use in the app and/or elsewhere
+saveRDS(
+  wicf_weight_summaries,
+  "intermediate_output/wicf_weight_summaries.RData"
+)
+
+saveRDS(
+  wicf_weights,
+  "intermediate_output/wicf_weights.RData"
+)
+saveRDS(
+  wicf_impacts_net,
+  "intermediate_output/wicf_impacts_net.RData"
+)
+saveRDS(
+  wicf_impacts_by_lcstage,
+  "intermediate_output/wicf_impacts_by_lcstage.RData"
+)
+```
+
+now making a sample chart to see if this works.
+
+```{r fig.width=6, fig.height=4.5}
+# sample weight chart
+ggplot()+
+#  theme_539()+
+  ggtitle("Weight chart")+
+  geom_bar(
+    data=
+      wicf_weights %>%
+      filter(wasteshed=="Metro", scenario=="actual", 
+             optVariant=="actual"),
+    aes(
+      x=material,
+      y=tons,
+      color=umbDisp,
+      fill=umbDisp,
+      alpha=umbDisp
+    ),
+    stat="identity",
+    position="stack"
+  ) +
+  coord_flip()
+```
+
+Now making an impact chart in the same order.
+
+```{r fig.width=6, fig.height=4}
+ggplot()+
+  theme_539()+
+  ggtitle("impact chart")+
+  geom_bar(
+    data=
+      wicf_impacts_by_lcstage %>%
+      filter(wasteshed=="Metro" & scenario=="actual"
+             & optVariant=="actual" & impactCategory=="Smog"),
+    aes(
+      x=factor(material, levels=material_sort_order),
+      y=impact,
+      color=LCstage,
+      fill=LCstage
+    ),
+    stat="identity",
+    position="stack",
+    alpha=0.3
+  )+
+  geom_bar(
+    data=
+      wicf_impacts_net %>%
+      filter(wasteshed=="Metro" & scenario=="actual"
+             & optVariant=="actual" & impactCategory=="Smog"),
+    aes(
+      x=material,
+      y=impact
+    ),
+    color="black",
+    fill=NA,
+    size=2,
+    stat="identity"
+  )+
+  coord_flip()
+```
