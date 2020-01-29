@@ -48,3 +48,6 @@ vignettes/*.pdf
 
 # app automatically generated images
 /wic-app/Rplot*
+
+# Windows thumbnail files
+Thumbs.db
