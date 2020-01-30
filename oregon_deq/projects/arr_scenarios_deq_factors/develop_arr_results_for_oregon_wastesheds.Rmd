@@ -50,8 +50,41 @@ impact_factors <-
 Need to generate a chart that shows just weight of materials in the wastestream, with their recovery rates.  This will be in the app too, so I will save the data files used for the chart.
 
 ```{r}
+# the masses at end-of-life
 masses_eol <- baseline_mass_profile
 
+# creating a pseudo wasteshed that is Oregon total
+temp_1 <-
+  masses_eol %>%
+  mutate(wasteshed = "Oregon total") %>%
+  group_by(year, wasteshed, material, disposition, umbDisp) %>%
+  summarise(
+    tons=sum(tons),
+    miles=mean(miles, na.rm=TRUE)
+  ) %>%
+  ungroup()
+
+wasteshed_sort_order <- c("Oregon total", unique(masses_eol$wasteshed))
+
+saveRDS(
+  wasteshed_sort_order,
+  "intermediate_output/wasteshed_sort_order.RData"
+)
+
+# adding the Oregon total as a wasteshed to the end-of-life masses
+masses_eol <-
+  bind_rows(
+    masses_eol,
+    temp_1
+  ) %>%
+  mutate(wasteshed=factor(wasteshed, levels=wasteshed_sort_order)) %>%
+  arrange(
+    year, wasteshed, material, umbDisp, disposition
+  )
+
+rm(temp_1)
+
+# those masses summed by wasteshed and umbrella disposition
 masses_eol_by_umbDisp <-
   summarise(
     group_by(masses_eol, year, wasteshed, material, umbDisp),
@@ -109,7 +142,7 @@ ggplot()+
   ggtitle("Weights and recovery rates for materials in the waste stream")+
   theme_539()+
   geom_bar(
-    data=masses_eol_by_umbDisp %>% filter(wasteshed=="Metro"),
+    data=masses_eol_by_umbDisp %>% filter(wasteshed=="Oregon total"),
     aes(
       x = factor(material, levels=material_sort_order), 
       y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
@@ -117,7 +150,7 @@ ggplot()+
     stat="identity"
   )+
   geom_text(
-    data=masses_eol_with_rr %>% filter(wasteshed=="Metro"),
+    data=masses_eol_with_rr %>% filter(wasteshed=="Oregon total"),
     aes(
       x=material, 
       y=tons,
@@ -260,7 +293,7 @@ junk3 <-
   weight_vs_impact_chart_data %>%
   filter(
     (impactCategory=="Weight" | impactCategory=="Energy demand")
-    & wasteshed=="Benton"
+    & wasteshed=="Oregon total"
   ) 
 ggplot()+
   theme_539()+
@@ -859,34 +892,34 @@ not sure if that was the most efficient way to do it, but there's the data i nee
 # for making a model of impact x recovery rate i can combine the weight and
 # impact files.
 
-arr_model_maker <-
-  full_join(
-    impacts_arr_sums_for_chart,
-    weight_stuff_for_chart_3 %>% select(-tons, -recoveredTons),
-    by=c("wasteshed", "optVariant", "scenario")
-  ) %>%
-  mutate(
-    scenario=factor(scenario, levels=c("dispose_all", "actual", "optimal"))
-  ) %>%
-  group_by(wasteshed, impactCategory, impactUnits)
-arr_model <-
-  do(
-    arr_model_maker,
-    tidy(
-      lm(
-        impact~rr,
-        data=.,
-        singular.ok = TRUE
-      )
-    )
-  )
-arr_model_coeff <-
-  pivot_wider(
-    arr_model %>% select(wasteshed, impactCategory, impactUnits, term, estimate),
-    names_from="term",
-    values_from = "estimate"
-  ) %>%
-  rename(rr_intercept=`(Intercept)`, rr_slope=rr)
+# arr_model_maker <-
+#   full_join(
+#     impacts_arr_sums_for_chart,
+#     weight_stuff_for_chart_3 %>% select(-tons, -recoveredTons),
+#     by=c("wasteshed", "optVariant", "scenario")
+#   ) %>%
+#   mutate(
+#     scenario=factor(scenario, levels=c("dispose_all", "actual", "optimal"))
+#   ) %>%
+#   group_by(wasteshed, impactCategory, impactUnits)
+# arr_model <-
+#   do(
+#     arr_model_maker,
+#     tidy(
+#       lm(
+#         impact~rr,
+#         data=.,
+#         singular.ok = TRUE
+#       )
+#     )
+#   )
+# arr_model_coeff <-
+#   pivot_wider(
+#     arr_model %>% select(wasteshed, impactCategory, impactUnits, term, estimate),
+#     names_from="term",
+#     values_from = "estimate"
+#   ) %>%
+#   rename(rr_intercept=`(Intercept)`, rr_slope=rr)
 ```
 
 now making a plot

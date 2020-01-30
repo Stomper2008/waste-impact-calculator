@@ -31,9 +31,14 @@ library(DT)
 library(plotly)
 library(heatmaply)
 library(scales)
+library(openxlsx)
 
 # importing some graphic conventions (to be expanded later)
 source(file="../oregon_deq/resources/theme_539.R")
+
+# a two-step palette based on viridis
+virPal2 <- viridis_pal()(2)
+names(virPal2) <- c("darkdark", "lightlight")
 
 # importing impact factor data
 impact_factors <-
@@ -189,7 +194,7 @@ ui <-
           "blah blah"
         ),
         mainPanel(
-          width=9,
+          width=12,
           "A video will go here, for people who don't like to read.
           Or perhaps 2 videos -- an introduction to the 
           idea of a life cycle assessment of the solid waste stream,
@@ -221,7 +226,7 @@ ui <-
             solid waste statistics."
           ),
           mainPanel(
-            width=9,
+            width=12,
             "Here is the pie chart, that shows all the stuff not
             in the waste stream.  Probably won't be many options 
             for this -- perhaps Oregon & Metro, and only for GHGs.
@@ -235,12 +240,23 @@ ui <-
         title="weights, recovery rates, & impacts",
         sidebarLayout(
         sidebarPanel(
-          h1("WEIGHTS, RECOVERY RATES, & IMPACTS"),
+          h2("WEIGHTS, RECOVERY RATES, & IMPACTS"),
           width=3,
           h5("WHAT THIS PAGE SHOWS"),
-          "blah blah",
-          h5("WHAT IT MEANS"),
-          "blah blah blah"
+          "This page shows how the weights of solid waste 
+          materials (left side of the page) relate 
+          to the total life cycle environmental impacts for 
+          those same materials (right side of the page).  
+          The weight chart also relates how much of that 
+          waste was recycled or otherwise recovered.",
+          h5("WHAT TO LOOK OUT FOR"),
+          "You'll probably notice that weight
+          doesn't always do a good job of indicating 
+          impacts.  For example, electronics typically have
+          extremely large life cycle impacts compared to
+          weight, whereas yard debris has low impacts 
+          compared to weight.  Similarly, a high recovery 
+          (recycling) rate doesn't imply low life cycle impacts."
         ), # close sidebar panel for weights recovery rates & impacts page
         mainPanel(
           width=9,
@@ -250,8 +266,13 @@ ui <-
               plotOutput("wrr_chart")
             ),
             column(
-              width=5,
-              plotOutput("wvi_chart")
+              width=4,
+              plotOutput("wvi_chart"),
+              downloadButton(
+                outputId="wvi_chart_data_download",
+                label="download this chart data",
+                width="100%"
+              )
             )
           ),
           fluidRow(
@@ -615,19 +636,33 @@ ui <-
 # server
 server <- function(input, output) {
   
+  wrr_chart_data_1 <- reactive({
+    wicf_weights %>% 
+      filter(
+        wasteshed==input$wvi_wasteshed_choice,
+        scenario==input$wvi_scenario_choice,
+        optVariant %in% 
+          c("actual", "dispose_all", input$wvi_impact_cat_choice)
+      )
+  })
+  
+  wrr_chart_data_2 <- reactive({
+    wicf_weight_summaries %>% 
+      filter(
+        wasteshed==input$wvi_wasteshed_choice,
+        scenario==input$wvi_scenario_choice,
+        optVariant %in% 
+          c("actual", "dispose_all", input$wvi_impact_cat_choice)
+      )
+  })
+  
   # generating output for the weight and recovery rate tab
   output$wrr_chart <- renderPlot({
   ggplot()+
     ggtitle("Weights and recovery rates")+
     theme_539()+
     geom_bar(
-      data=wicf_weights %>% 
-        filter(
-          wasteshed==input$wvi_wasteshed_choice,
-          scenario==input$wvi_scenario_choice,
-          optVariant %in% 
-            c("actual", "dispose_all", input$wvi_impact_cat_choice)
-          ),
+      data=wrr_chart_data_1(),
       aes(
         x = factor(material, levels=material_sort_order), 
         y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
@@ -635,13 +670,7 @@ server <- function(input, output) {
       stat="identity"
     )+
     geom_text(
-      data=wicf_weight_summaries %>% 
-        filter(
-          wasteshed==input$wvi_wasteshed_choice,
-          scenario==input$wvi_scenario_choice,
-          optVariant %in% 
-            c("actual", "dispose_all", input$wvi_impact_cat_choice)
-        ),
+      data=wrr_chart_data_2(),
       aes(
         x=material, 
         y=tons,
@@ -651,8 +680,8 @@ server <- function(input, output) {
     )+
     scale_y_continuous(name="short tons", labels=comma)+
     coord_flip()+
-    scale_colour_manual(values=rev(c("aquamarine4","steelblue4")))+
-    scale_fill_manual(values=rev(c("aquamarine4", "steelblue4")))+
+    scale_colour_viridis(discrete=TRUE)+
+    scale_fill_viridis(discrete=TRUE)+
     scale_alpha_manual(values=c(0.25,0.75))+
     theme(
       legend.position=c(0.7,0.2),
@@ -663,21 +692,25 @@ server <- function(input, output) {
   })
   
   # generating output for the weight vs. impacts tab
+  
+  wvi_chart_data <- reactive({
+    wicf_impacts_net %>%
+      filter(
+        impactCategory==input$wvi_impact_cat_choice,
+        wasteshed == input$wvi_wasteshed_choice,
+        scenario == input$wvi_scenario_choice,
+        optVariant %in%
+          c("actual", "dispose_all", input$wvi_impact_cat_choice)
+      )
+  })
+  
   output$wvi_chart <-
     renderPlot({
       ggplot()+
-        ggtitle("life cycle impacts")+
+        ggtitle("Life cycle impacts")+
         theme_539()+
         geom_bar(
-          data=
-            wicf_impacts_net %>%
-            filter(
-              impactCategory==input$wvi_impact_cat_choice,
-              wasteshed == input$wvi_wasteshed_choice,
-              scenario == input$wvi_scenario_choice,
-              optVariant %in%
-                c("actual", "dispose_all", input$wvi_impact_cat_choice)
-            ),
+          data=wvi_chart_data(),
           aes(
             x=factor(material, levels=material_sort_order), 
             y=impact
@@ -687,8 +720,29 @@ server <- function(input, output) {
           position="stack"
         )+
         coord_flip()+
-        theme(legend.position = "none")
+        theme(
+          legend.position = "none",
+          axis.title=element_text(),
+          axis.title.y=element_blank(),
+          axis.title.x=element_text()
+          )
     })
+  
+  
+  
+  output$wvi_chart_data_download <-
+    downloadHandler(
+#      filename="wvi_chart_data_download.csv",
+      filename="wvi_chart_data_download.xlsx",
+      content = function(file) {
+         write.xlsx(
+           wvi_chart_data(),
+           file
+         )
+  #      write.csv(wvi_chart_data(), file, row.names = F)
+      }
+    )
+  
   
   # generating output for the where impacts come from page
 

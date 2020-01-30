@@ -21,7 +21,47 @@ library(tidyverse)
 library(ggthemes)
 library(svglite)
 library(viridis)
+```
 
+Fooling around with some colors.
+
+```{r}
+library(scales)
+show_col(viridis_pal()(20))
+
+myList <- viridis_pal()(20)
+
+myMap <- 
+  viridis.map %>%
+  filter(opt=="D") %>%
+  mutate(
+    r2=R,
+    g2=G,
+    b2=B
+  )
+
+mySampleColor <-
+  sample_n(myMap,1)
+
+show_col(
+  rgb(
+    red=mySampleColor$r2,
+    green=mySampleColor$g2,
+    blue=mySampleColor$b2,
+    maxColorValue = 1
+  )
+)
+
+
+
+
+```
+
+
+
+
+
+```{r}
 # importing impact factor data
 fe_no_records <- 2  #this is just a limiter during app development
 impact_factors <-
