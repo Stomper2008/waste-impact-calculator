@@ -187,14 +187,14 @@ ui <-
       sidebarLayout(
         sidebarPanel(
           width=3,
-          h2("INTRODUCTION"),
+          h3("INTRODUCTION"),
           h5("WHAT THIS PAGE SHOWS"),
           "blah blah",
           h5("WHAT TO LOOK OUT FOR"),
           "blah blah"
         ),
         mainPanel(
-          width=12,
+          width=9,
           "A video will go here, for people who don't like to read.
           Or perhaps 2 videos -- an introduction to the 
           idea of a life cycle assessment of the solid waste stream,
@@ -213,7 +213,7 @@ ui <-
         title="total weight & impacts of the waste stream",
         sidebarLayout(
           sidebarPanel(
-            h1("TOTAL WEIGHT & IMPACTS OF THE WASTE STREAM"),
+            h3("TOTAL WEIGHT & IMPACTS OF THE WASTE STREAM"),
             width=3,
             h5("WHAT THIS CHART SHOWS"),
             "This chart shows how the waste stream can
@@ -226,7 +226,7 @@ ui <-
             solid waste statistics."
           ),
           mainPanel(
-            width=12,
+            width=9,
             "Here is the pie chart, that shows all the stuff not
             in the waste stream.  Probably won't be many options 
             for this -- perhaps Oregon & Metro, and only for GHGs.
@@ -240,16 +240,15 @@ ui <-
         title="weights, recovery rates, & impacts",
         sidebarLayout(
         sidebarPanel(
-          h2("WEIGHTS, RECOVERY RATES, & IMPACTS"),
+          h3("WEIGHTS, RECOVERY RATES, & IMPACTS"),
           width=3,
-          h5("WHAT THIS PAGE SHOWS"),
           "This page shows how the weights of solid waste 
           materials (left side of the page) relate 
           to the total life cycle environmental impacts for 
           those same materials (right side of the page).  
           The weight chart also relates how much of that 
           waste was recycled or otherwise recovered.",
-          h5("WHAT TO LOOK OUT FOR"),
+          h5(""),
           "You'll probably notice that weight
           doesn't always do a good job of indicating 
           impacts.  For example, electronics typically have
@@ -262,11 +261,11 @@ ui <-
           width=9,
           fluidRow(
             column(
-              width=4,
+              width=6,
               plotOutput("wrr_chart")
             ),
             column(
-              width=4,
+              width=6,
               plotOutput("wvi_chart"),
               downloadButton(
                 outputId="wvi_chart_data_download",
@@ -277,7 +276,7 @@ ui <-
           ),
           fluidRow(
             column(
-              width=3,
+              width=4,
               selectInput(
                 inputId="wvi_wasteshed_choice",
                 label="choose a wasteshed",
@@ -286,7 +285,7 @@ ui <-
               )
             ),
             column(
-              width=3,
+              width=4,
               selectInput(
                 inputId="wvi_impact_cat_choice",
                 label="choose an impact category",
@@ -295,7 +294,7 @@ ui <-
               )
             ),
             column(
-              width=3,
+              width=4,
               selectInput(
                 inputId="wvi_scenario_choice",
                 label="choose a management scenario",
@@ -313,9 +312,8 @@ ui <-
           title="where impacts come from",
           sidebarLayout(
             sidebarPanel(
-              h1("WHERE IMPACTS COME FROM"),
               width=3,
-              h5("WHAT THIS SHOWS"),
+              h3("WHERE IMPACTS COME FROM"),
               "The impact chart on the right 
               shows how net life cycle impacts 
               of materials are calculated.  The net 
@@ -328,7 +326,7 @@ ui <-
               management scenario to see if increasing 
               disposal or recovery will substantially change the 
               net impacts.",
-              h5("WHAT TO LOOK OUT FOR"),
+              h5(""),
               "A bit of experimenting with this chart and its 
               options will start to suggest several things.  
               First, the great bulk of impacts associated with 
@@ -341,17 +339,17 @@ ui <-
               width=9,
               fluidRow(
                 column(
-                  width=4,
+                  width=6,
                   plotOutput("wicf_weight_chart")
                 ),
                 column(
-                  width=5,
+                  width=6,
                   plotOutput("wicf_impact_chart")
                 )
               ),
               fluidRow(
                 column(
-                  width=3,
+                  width=4,
                   selectInput(
                     inputId="wicf_wasteshed_choice",
                     label="choose a wasteshed",
@@ -360,7 +358,7 @@ ui <-
                   )
                 ),
                 column(
-                  width=3,
+                  width=4,
                   selectInput(
                     inputId="wicf_impactCategory_choice",
                     label="choose an impact category",
@@ -369,7 +367,7 @@ ui <-
                   )
                 ),
                 column(
-                  width=3,
+                  width=4,
                   selectInput(
                     inputId="wicf_scenario_choice",
                     label="choose a management scenario",
@@ -391,9 +389,8 @@ ui <-
             title="Impact intensities",  
           sidebarLayout(
             sidebarPanel(
-              h1("IMPACT INTENSITIES"),
+              h3("IMPACT INTENSITIES"),
             width=3,
-            h5("WHAT THIS CHART SHOWS"),
             "This chart makes it easier to evaluate impacts for 
             many different impact categories (for example, 
             global warming and water use) in a single glance. 
@@ -404,13 +401,14 @@ ui <-
             the wasteshed's total impacts for that impact 
             category.  Float your pointer over a 
             square to see the numeric data.",
+            h5(""),
             "In addition, this chart tries to group 
             similarly sized impacts together.  For example, 
             high water consumption impacts are often 
             grouped with high eutrophication impacts.  
             These groupings are expressed by the wiry 
             dendrogram across the top of the chart.",
-            h5("WHAT TO LOOK OUT FOR"),
+            h5(""),
             "This chart is likely to show you that 
             materials are not at all equal!  Certain kinds 
             of impacts are likely to be concentrated among 
@@ -562,14 +560,7 @@ ui <-
           sidebarPanel(
             width=3,
             h1("ENTER YOUR OWN WASTE"),
-            "blah blah",
-            selectInput(
-              inputId="fe_ImpactCategoryChoice",
-              label=h3("Choose your impact category"),
-              choices = unique(impact_factors$impactCategory),
-              selected="Energy demand",
-              width="100%"
-            )
+            "blah blah"
           ),
           mainPanel(
             tabsetPanel(
@@ -577,19 +568,7 @@ ui <-
                 title="enter your data",
                 h3("Enter your solid waste data"),
                 DTOutput("x1"),
-                h3("Download results"),
-                downloadButton(
-                  outputId="fe_summaryOfTonsAndImpactsFile",
-                  label="summary of weight and impacts"
-                ),
-                downloadButton(
-                  outputId="fe_impactDetailsFile",
-                  label="impact calculation details"
-                ),
-                downloadButton(
-                  outputId="fe_formattedReport",
-                  label="nicely formatted report"
-                )
+                h3("Download results")
               ), # close enter your own data tab
 
             tabPanel(
@@ -601,6 +580,21 @@ ui <-
               column(
                 width=6,
                 plotOutput("x6") #impact chart
+              ),
+              selectInput(
+                inputId="fe_ImpactCategoryChoice",
+                label=h3("Choose your impact category"),
+                choices = unique(impact_factors$impactCategory),
+                selected="Energy demand",
+                width="100%"
+              ),
+              downloadButton(
+                outputId="fe_summaryOfTonsAndImpactsFile",
+                label="summary of weight and impacts"
+              ),
+              downloadButton(
+                outputId="fe_impactDetailsFile",
+                label="impact calculation details"
               )
             ),
             
