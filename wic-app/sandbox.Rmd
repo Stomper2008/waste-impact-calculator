@@ -8,6 +8,251 @@ This R Markdown notebook is a place for me to experiment with code for the inter
 
 This file is probably going to be a big mess, so I don't know if it will do anybody else any good.
 
+# putting objects into a zip file, or an excel file
+
+I need a way to give users a way to take multi-layered data home... e.g. a mix of data files, images, etc.
+
+One way is a zip file.  There's a zip package.  Let's try it.
+
+```{r fig.height=4, fig.width=6}
+# packages I need
+library(tidyverse)
+library(zip)
+library(openxlsx)
+
+# creating and writing out some data (with a timestamp)
+someData <-
+  data.frame(
+    xx = c(rep(c("a", "b"),5)),
+    yy = rnorm(n=10, mean=5, sd=1)
+  )
+someTimeStamp <-   # 
+  parse_date_time(date(),"a b! d! H!M!S! Y!")
+someTimeStamp <-
+  paste(
+    as.character(hour(someTimeStamp)),
+    as.character(minute(someTimeStamp)),
+    sep=""
+  )
+theDataFileSpec <- 
+  paste("sandbox_output/data", someTimeStamp, ".csv", sep="")
+write.csv(someData, theDataFileSpec, row.names = F)
+
+# plotting and saving some data
+theChartObject <-
+  ggplot()+
+  geom_point(
+    data = someData,
+    aes(x = xx, y = yy)
+  )
+theChartFileSpec <-
+  paste("sandbox_output/chart", someTimeStamp, ".png", sep="")
+ggsave(
+  filename = theChartFileSpec,
+  plot = theChartObject
+)
+
+zipr(
+  zipfile = "sandbox_output/theZipFile.zip", 
+  files = c(theDataFileSpec, theChartFileSpec), 
+  recurse = TRUE, 
+  compression_level = 9,
+  include_directories = TRUE
+)
+
+```
+
+Another way is an excel file.  The package openxlsx allows you to create workbooks and save both data and images to them.
+
+```{r}
+myWorkbook <-
+  createWorkbook()
+addWorksheet(wb = myWorkbook, sheetName = "data")
+addWorksheet(wb = myWorkbook, sheetName = "chart")
+writeDataTable(
+  wb = myWorkbook,
+  sheet = "data",
+  x = someData
+)
+insertImage(
+  wb = myWorkbook,
+  sheet = "chart",
+  file=theChartFileSpec
+)
+saveWorkbook(
+  wb = myWorkbook,
+  file = "sandbox_output/mySpreadSheet.xlsx"
+)
+```
+
+
+The excel export is working.  the plots look terrible, though.  Their size changes.
+Right now I'm feeling zip file might be better.
+
+...
+
+Later...
+
+I have created an app (code below) where download buttons can easily download single objects (data file as csv or excel, and single plot as png).  
+
+I believe I could also write multiple data files into one excel workbook.
+
+So, in a way I have enough right now.  I have ways both data and images can be downloaded.
+
+However, in order to combine them I would have to write such images to files and I can't figure out how to do that.  Shiny has a function called plotPNG but i can't find a single example of it working.
+
+The following app won't run here... i am just saving it here because the place where I wrote it isn't in the version control system.
+```{r}
+# filename app.R
+# place this in some harmless folder
+
+# this app is meant to test whether I can export 
+# multiple files into a zip file.
+
+
+library(shiny)
+library(tidyverse)
+library(zip)
+library(openxlsx)
+
+# make some initial starting data
+myDataAll <-
+  data.frame(
+    xx=rep(letters[1:4], 5),
+    yy=rnorm(20, mean=5, sd=2)
+    )
+
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+   
+   # Application title
+   titlePanel("Can i zip it?"),
+   
+   # Sidebar with a slider input for number of bins 
+   sidebarLayout(
+      sidebarPanel(
+        selectInput(
+          inputId = "letterChoice",
+          label = "choose 1+ letters",
+          choices = unique(myDataAll$xx),
+          selected = "a",
+          multiple = TRUE
+        )
+      ),
+      
+      # Show a plot of the generated distribution
+      mainPanel(
+         plotOutput("letterPlot"),
+         downloadButton(
+           outputId = "dataDL",
+           label = "download the data"
+         ),
+         downloadButton(
+           outputId = "chartDL",
+           label = "download the chart image"
+         ),
+         downloadButton(
+           outputId = "excelDL",
+           label = "download an Excel file"
+         )
+         
+         # downloadButton(
+         #   outputID = "zipDL",
+         #   label = "download a zip file"
+      )
+   ) # close sidebarlayout
+   ) # close ui fluidpage
+
+# Define server logic required to draw a histogram
+server <- function(input, output) { 
+  
+  theLetterPlotData <- reactive({
+    myDataAll %>% 
+    filter(xx %in% input$letterChoice)
+  })
+  
+   theLetterPlotObject <- reactive({
+     ggplot()+
+     ggtitle("ye old plot")+
+     geom_point(
+       data=theLetterPlotData(),
+       aes(x=xx, y=yy)
+     )
+   })
+   
+   output$letterPlot <- renderPlot({
+     theLetterPlotObject()
+   })
+   
+   output$dataDL <-
+     downloadHandler(
+       filename = function() {
+         paste("data", ".csv", sep = "")
+       },
+       content = function(file) {
+         write.csv(
+           theLetterPlotData(), 
+           file, 
+           row.names = FALSE
+        )
+       }
+     )
+   
+   output$chartDL <-
+     downloadHandler(
+       filename = "theChart.png",
+       content = function(file) {
+         ggsave(
+           file,
+           plot = theLetterPlotObject(),
+           device="png"
+         )
+       }
+     )
+   
+   output$excelDL <-
+     downloadHandler(
+       filename = function() {
+         paste("theExcel", ".xlsx", sep = "")
+       },
+       content = function(file) {
+         # write.xlsx(
+         #   theLetterPlotData(), 
+         #   file
+         # )
+         myWorkbook <-
+           createWorkbook()
+         addWorksheet(wb = myWorkbook, sheetName = "data")
+         addWorksheet(wb = myWorkbook, sheetName = "chart")
+         writeDataTable(
+           wb = myWorkbook,
+           sheet = "data",
+           x = theLetterPlotData()
+         )
+         # insertImage(
+         #   wb = myWorkbook,
+         #   sheet = "chart",
+         #   file=theChartFileSpec
+         # )
+         saveWorkbook(
+           wb = myWorkbook,
+           file = file
+         )
+       }
+     )
+   
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+
+```
+
+
+
+
 # the free entry interface
 
 Here the user is going to be given combos of materials and dispositions.  They can adjust the tons and end-of-life mileage.  Then they will be shown the weights and impacts.
