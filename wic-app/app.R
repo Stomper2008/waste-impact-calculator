@@ -559,27 +559,46 @@ ui <-
         sidebarLayout(
           sidebarPanel(
             width=3,
-            h1("ENTER YOUR OWN WASTE"),
-            "blah blah"
+            h3("ENTER YOUR OWN WASTE"),
+            "This set of tabs gives you the opportunity to generate 
+            the same kinds of life-cycle impact results as elsewhere in 
+            the Waste Impact Calculator, but using your own solid waste 
+            data.",
+            h5(""),
+            "You need to know the weights (in short tons), end-of-life
+            dispositions, and end-of-life transport distances for at 
+            least one material.  Enter those for a 'baseline' scenario 
+            (probably whatever the current situation is).  Then imagine 
+            a different way of managing that material and enter it as the 
+            'alternative' scenario.",
+            h5(""),
+            "The app will then calculate life cycle impacts you can view 
+            in the other tabs."
           ),
           mainPanel(
             tabsetPanel(
               tabPanel(
-                title="enter your data",
+                title="Enter your data",
                 h3("Enter your solid waste data"),
                 DTOutput("x1"),
-                h3("Download results")
+                h3("Entry confirmation"),
+                tableOutput("fe_data_entry_confirmation")
               ), # close enter your own data tab
 
             tabPanel(
-              title="Total results",
+              title="Total weights and impacts",
               column(
                 width=6,
                 plotOutput("x5") #weight chart
               ),
               column(
                 width=6,
-                plotOutput("x6") #impact chart
+                plotOutput("x6"), #impact chart
+                downloadButton(
+                  outputId = "fe_totalImpactChartDL",
+                  label = "download this chart",
+                  width = "100%"
+                )
               ),
               selectInput(
                 inputId="fe_ImpactCategoryChoice",
@@ -587,21 +606,29 @@ ui <-
                 choices = unique(impact_factors$impactCategory),
                 selected="Energy demand",
                 width="100%"
-              ),
-              downloadButton(
-                outputId="fe_summaryOfTonsAndImpactsFile",
-                label="summary of weight and impacts"
-              ),
-              downloadButton(
-                outputId="fe_impactDetailsFile",
-                label="impact calculation details"
               )
             ),
             
             tabPanel(
-              title="Detailed results",
-              h3("Your data with impacts"),
-              DTOutput("x4")
+              title="Detailed weights and impacts"
+            ),
+            
+            tabPanel(
+              title = "Heatmaps & normalized impacts"
+            ),
+            
+            tabPanel(
+              title = "Solutions"
+            ),
+            
+            tabPanel(
+              title="Download your data and results",
+              "Not sure if this is really helping",
+              DTOutput("x4"),
+              downloadButton(
+                outputId = "fe_fullDataDownload",
+                label = "download all data and results (long)"
+              )
             )
           
           ) # close tabset panel for enter your own page  
@@ -951,7 +978,7 @@ server <- function(input, output) {
   output$x1 <- 
     renderDT(
       fe_mat_disp_combos,
-      options=list(pageLength=7),
+      options=list(pageLength=10),
       container=fe_sketch, #use header format defined previously
       # filter = "top",
       selection = 'none',
@@ -985,7 +1012,6 @@ server <- function(input, output) {
   
   fe_mat_disp_combos_2 <- reactive({
     input$x1_cell_edit
-    # here is where the joins and so on would go in
     # flipping so the form is 
     # scenario - material - disposition - tons - miles
       pivot_longer(fe_mat_disp_combos,baseline_tons:alternative_miles, 
@@ -997,7 +1023,7 @@ server <- function(input, output) {
       filter(tons>0)
   })
   
-#  output$x2 <- renderTable(fe_mat_disp_combos_2())
+  output$fe_data_entry_confirmation <- renderTable(fe_mat_disp_combos_2())
   
   #so, mat_disp_combos_2 has the end-of-life information I need.
   #but production information isn't included.
@@ -1134,44 +1160,76 @@ server <- function(input, output) {
       sep=""
     )
   }) # close reactive
+
+  # define the impact chart object
+  fe_totalImpactChartObject <- reactive({
+    ggplot()+
+      theme_fivethirtyeight()+
+      geom_bar(
+        data=filter(
+          fe_summed_impacts(), 
+          impactCategory==input$fe_ImpactCategoryChoice
+        ),
+        aes(x=scenario, y=impact),
+        color="black",
+        alpha=0.2,
+        size=2,
+        stat="identity",
+        position="stack"
+      )+
+      coord_flip()
+  })  # close fe_totalImpactChartObject definition
   
+    
   # draw the impact chart
   output$x6 <- renderPlot({
-  ggplot()+
-    ggtitle(fe_impact_chart_title())+
-    theme_fivethirtyeight()+
-    geom_bar(
-      data=filter(
-        fe_combos_with_impacts(), 
-        impactCategory==input$fe_ImpactCategoryChoice
-      ),
-      aes(x=scenario, y=impact, fill=LCstage, color=LCstage),
-      alpha=0.7,
-      stat="identity",
-      position="stack"
-    )+
-    geom_point(
-      data=filter(
-        fe_summed_impacts(), 
-        impactCategory==input$fe_ImpactCategoryChoice
-      ),
-      aes(x=scenario, y=impact),
-      shape=21,
-      size=10,
-      fill="orange"
-    )+
-    coord_flip()
+    fe_totalImpactChartObject()
   }
   )  # close renderPlot
   
-  # create the file output
-  output$fe_impactDetailsFile <-
+  output$fe_totalImpactChartDL <-
     downloadHandler(
-      filename="wic_enter_your_own_impact_details.csv",
+      filename = "fe_totalImpactChartDL.png",
       content = function(file) {
-        write.csv(fe_combos_with_impacts_detailed(), file, row.names = F)
+        ggsave(
+          file,
+          plot = fe_totalImpactChartObject(),
+          device="png"
+        )
       }
     )
+  
+  # download page
+  output$fe_fullDataDownload <-
+    downloadHandler(
+      filename = function() {
+        paste("fe_fullDataDownload", ".xlsx", sep = "")
+      },
+      content = function(file) {
+        myWorkbook <-
+          createWorkbook()
+        addWorksheet(wb = myWorkbook, sheetName = "total weights")
+        addWorksheet(wb = myWorkbook, sheetName = "total impacts")
+        writeDataTable(
+          wb = myWorkbook,
+          sheet = "total weights",
+          x = fe_combos_with_tons()
+        )
+        writeDataTable(
+          wb = myWorkbook,
+          sheet = "total impacts",
+          x = fe_summed_impacts()
+        )
+        saveWorkbook(
+          wb = myWorkbook,
+          file = file
+        )
+      }
+    )
+  
+
+  
+  
   
   } # close server
 
