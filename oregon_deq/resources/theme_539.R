@@ -23,3 +23,15 @@ deq_pal <-
     "dodgerblue4", "darkslateblue", "maroon4", "cyan4", 
     "darkgoldenrod3")
 names(deq_pal) <- deq_pal
+
+# that palette above doesn't play well with viridis
+# here is a different palette that does
+
+deqPal3 <- viridis_pal(begin=0.32, end=1)(3)
+deqPal15 <- viridis_pal(begin=0.32, end=1)(15)
+names(deqPal3) <- 
+  c("blue_bold", "green_bold", "yellow_bold")
+names(deqPal15) <-
+  c("blue_bold", "col2", "col3", "col4","col5","col6",
+    "green_bold", "col8", "col9", "col10", "col11",
+    "col12", "lime_bold", "col14", "yellow_bold")
