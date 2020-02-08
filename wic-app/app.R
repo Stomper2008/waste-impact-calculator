@@ -40,6 +40,11 @@ source(file="../oregon_deq/resources/theme_539.R")
 virPal2 <- viridis_pal()(2)
 names(virPal2) <- c("darkdark", "lightlight")
 
+# a four-step palette based on viridis
+myPal <- 
+  deqPal15[c("blue_bold", "green_bold", "lime_bold", "yellow_bold")]
+myPal2 <- as.character(myPal)
+
 # importing impact factor data
 impact_factors <-
   readRDS(
@@ -188,17 +193,14 @@ ui <-
         sidebarPanel(
           width=3,
           h3("INTRODUCTION"),
-          h5("WHAT THIS PAGE SHOWS"),
-          "blah blah",
-          h5("WHAT TO LOOK OUT FOR"),
-          "blah blah"
+          "This page has a youtube video or two to introduce you to 
+          the ideas behind this work, and how to use the model... 
+          like the diff between waste and materials, and the 
+          materials life cycle."
         ),
         mainPanel(
           width=9,
-          "A video will go here, for people who don't like to read.
-          Or perhaps 2 videos -- an introduction to the 
-          idea of a life cycle assessment of the solid waste stream,
-          and then an introduction to how to use the app."
+          "insert videos below"
         )
       ) # close sidebarlayout for introduction page
     ), #close introduction page
@@ -586,14 +588,14 @@ ui <-
               ), # close enter your own data tab
 
             tabPanel(
-              title="Total weights and impacts",
+              title="Total weights & impacts",
               column(
                 width=6,
-                plotOutput("x5") #weight chart
+                plotOutput("fe_totalWtChart") #weight chart
               ),
               column(
                 width=6,
-                plotOutput("x6"), #impact chart
+                plotOutput("fe_totalImpactChart"), #impact chart
                 downloadButton(
                   outputId = "fe_totalImpactChartDL",
                   label = "download this chart",
@@ -610,21 +612,27 @@ ui <-
             ),
             
             tabPanel(
-              title="Detailed weights and impacts"
+              title="Detailed weights & impacts",
+              fluidRow(
+                column(
+                  width=6,
+                  plotOutput("fed_detailedTonsChart")
+                ),
+                column(
+                  width=6,
+                  "impact chart goes here"
+                )
+              )
             ),
             
             tabPanel(
-              title = "Heatmaps & normalized impacts"
+              title = "Hotspots & strategies"
             ),
-            
+
             tabPanel(
-              title = "Solutions"
-            ),
-            
-            tabPanel(
-              title="Download your data and results",
+              title="Download",
               "Not sure if this is really helping",
-              DTOutput("x4"),
+              DTOutput("fe_detailedImpactTable"),
               downloadButton(
                 outputId = "fe_fullDataDownload",
                 label = "download all data and results (long)"
@@ -978,7 +986,7 @@ server <- function(input, output) {
   output$x1 <- 
     renderDT(
       fe_mat_disp_combos,
-      options=list(pageLength=10),
+      options=list(pageLength=7),
       container=fe_sketch, #use header format defined previously
       # filter = "top",
       selection = 'none',
@@ -1060,12 +1068,13 @@ server <- function(input, output) {
       )
     })
   
-  output$x4 <- 
+  output$fe_detailedImpactTable <- 
     renderDT(
       fe_combos_with_impacts_detailed(),
       filter="top",
       rownames=F
       )
+  
   
   # summing tons, for tons chart
   fe_combos_with_tons <- reactive({
@@ -1080,24 +1089,32 @@ server <- function(input, output) {
     ungroup() %>%
     arrange(scenario, disposition) %>%
     mutate(
-      scenario=factor(scenario, levels=c("baseline", "alternative"))
+      scenario=factor(scenario, levels=rev(c("baseline", "alternative")))
     )
   })
   
-  output$x5 <- renderPlot({
+  output$fe_totalWtChart <- renderPlot({
     # draw the weight chart
     ggplot()+
       ggtitle("short tons")+
-      theme_fivethirtyeight()+
+      theme_539()+
       geom_bar(
         data=fe_combos_with_tons(),
         aes(x=scenario, y=tons, fill=disposition),
-        alpha=0.7,
         stat="identity",
-        position="stack"
+        position="stack",
+        color="black"
       )+
       coord_flip()+
-      theme(legend.position="bottom")
+      # the following fill spec works but I can't control colors
+#      scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
+      # meanwhile the following manual scale works when you
+      # give the color numbers as a vector WITHOUT NAMES
+      scale_fill_manual(values=myPal2)+
+      theme(
+        axis.text.y = element_text(size=12),
+        legend.position="bottom"
+      )
     }
     ) 
   
@@ -1118,7 +1135,7 @@ server <- function(input, output) {
     arrange(impactCategory, scenario, LCstage) %>%
     mutate(
       scenario=
-        factor(scenario, levels=c("baseline", "alternative")),
+        factor(scenario, levels=rev(c("baseline", "alternative"))),
       LCstage=
         factor(
           LCstage, 
@@ -1182,7 +1199,7 @@ server <- function(input, output) {
   
     
   # draw the impact chart
-  output$x6 <- renderPlot({
+  output$fe_totalImpactChart <- renderPlot({
     fe_totalImpactChartObject()
   }
   )  # close renderPlot
@@ -1198,6 +1215,48 @@ server <- function(input, output) {
         )
       }
     )
+  
+  # REACTIVE OBJECTS FOR THE "DETAILED WEIGHTS & IMPACTS" SECTION
+  # summing tons, for tons chart
+  fe_detailed_tons_data <- reactive({
+    summarise(
+      group_by(
+        fe_mat_disp_combos_2(),
+        scenario,
+        material,
+        disposition
+      ),
+      tons=sum(tons)
+    ) %>% 
+      ungroup() %>%
+      arrange(scenario, material, disposition) %>%
+      mutate(
+        scenario=factor(scenario, levels=c("baseline", "alternative"))
+      )
+  })
+  
+  
+  fe_detailed_tons_chart_object <- reactive({
+    ggplot()+
+      theme_539()+
+      geom_bar(
+        data = fe_detailed_tons_data(),
+        aes(
+          x = material,
+          y = tons,
+          fill = disposition
+        ),
+        stat = "identity",
+        position = "stack"
+      )+
+      scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
+      facet_grid(scenario~.)+
+      coord_flip()
+  }) # close defining fe_detailed_tons_chart_object
+  
+  output$fed_detailedTonsChart <- renderPlot({
+    fe_detailed_tons_chart_object()
+  })
   
   # download page
   output$fe_fullDataDownload <-

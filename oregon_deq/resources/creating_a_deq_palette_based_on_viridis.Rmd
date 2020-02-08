@@ -284,3 +284,14 @@ ggplot()+
   )
 ggsave("palette_check_3.png")
 ```
+
+Several days later:
+
+I've discovered how to use viridis in the app.  Here are the options:
+
+* you can use the scale_fill_viridis()  with the discrete=TRUE option to generate colors for things like bar charts.  this would include a start= and end= command similar to the one i've used above that might allow me to set colors that are similar to the ones I've matched with DEQ directives.  This is a flexible option because it will generate as many discrete colors as necessary.
+* I can use the manually generated palettes I've created, e.g. deqPal3 and deqPal15, but I need to remove the names from the vectors.  The names actually seem to confuse ggplot.
+
+
+
+You can give a string of color codes as a 
