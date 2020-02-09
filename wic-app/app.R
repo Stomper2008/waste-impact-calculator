@@ -620,7 +620,14 @@ ui <-
                 ),
                 column(
                   width=6,
-                  "impact chart goes here"
+                  plotOutput("fed_detailedImpactsChart")
+                )
+              ),
+              fluidRow(
+                selectInput(
+                  inputId = "fe_detailedImpactsCategoryChoice",
+                  label = "choose an impact category",
+                  choices = unique(impact_factors$impactCategory)
                 )
               )
             ),
@@ -1216,7 +1223,9 @@ server <- function(input, output) {
       }
     )
   
-  # REACTIVE OBJECTS FOR THE "DETAILED WEIGHTS & IMPACTS" SECTION
+  # REACTIVE OBJECTS FOR THE "DETAILED WEIGHTS & IMPACTS" TAB
+  # OF THE FREE ENTRY SECTION
+  
   # summing tons, for tons chart
   fe_detailed_tons_data <- reactive({
     summarise(
@@ -1231,18 +1240,19 @@ server <- function(input, output) {
       ungroup() %>%
       arrange(scenario, material, disposition) %>%
       mutate(
-        scenario=factor(scenario, levels=c("baseline", "alternative"))
+        scenario =
+          factor(scenario, levels=rev(c("baseline", "alternative")))
       )
   })
   
-  
+  # defining the chart
   fe_detailed_tons_chart_object <- reactive({
     ggplot()+
       theme_539()+
       geom_bar(
         data = fe_detailed_tons_data(),
         aes(
-          x = material,
+          x = scenario,
           y = tons,
           fill = disposition
         ),
@@ -1250,12 +1260,70 @@ server <- function(input, output) {
         position = "stack"
       )+
       scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
-      facet_grid(scenario~.)+
+      facet_grid(material~.)+
       coord_flip()
   }) # close defining fe_detailed_tons_chart_object
   
   output$fed_detailedTonsChart <- renderPlot({
     fe_detailed_tons_chart_object()
+  })
+  
+  
+  # summing impacts, for the impacts chart total
+  fe_detailed_tons_impact_total <- reactive({
+    summarize(
+      group_by(
+        fe_combos_with_impacts_detailed(),
+        scenario,
+        material,
+        impactCategory,
+        impactUnits
+      ),
+      impact=sum(impact, na.rm=TRUE)
+    ) %>%
+    ungroup()
+  })
+  
+
+  # defining the detailed impact chart object
+  fe_detailed_impacts_chart_object <- reactive({
+    ggplot()+
+      theme_539()+
+      geom_bar(
+        data = fe_combos_with_impacts_detailed() %>%
+          filter(
+            impactCategory==input$fe_detailedImpactsCategoryChoice
+          ),
+        aes(
+          x = scenario,
+          y = impact,
+          fill = LCstage
+        ),
+        stat="identity",
+        position = "stack"
+      )+
+      geom_bar(
+        data = 
+          fe_detailed_tons_impact_total() %>%
+          filter(
+            impactCategory==input$fe_detailedImpactsCategoryChoice
+          ),
+        aes(x=scenario, y=impact),
+        stat="identity",
+        position="stack",
+        color="black",
+        fill = NA,
+        size=2
+      )+
+      facet_grid(material~.)+
+      coord_flip()+
+      scale_fill_manual(values=myPal2)+
+      theme()
+  })
+  
+  # rendering the detailed impact plot
+  output$fed_detailedImpactsChart <- renderPlot({
+    fe_detailed_impacts_chart_object()
   })
   
   # download page
@@ -1279,6 +1347,18 @@ server <- function(input, output) {
           sheet = "total impacts",
           x = fe_summed_impacts()
         )
+        addWorksheet(wb = myWorkbook, sheetName = "detailed weights")
+        addWorksheet(wb = myWorkbook, sheetName = "detailed impacts")
+        writeDataTable(
+          wb = myWorkbook,
+          sheet = "detailed weights",
+          x = fe_detailed_tons_data()
+        )
+        writeDataTable(
+          wb= myWorkbook,
+          sheet = "detailed impacts",
+          x = fe_combos_with_impacts_detailed()
+          )
         saveWorkbook(
           wb = myWorkbook,
           file = file
