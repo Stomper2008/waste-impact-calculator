@@ -591,10 +591,17 @@ ui <-
               title="Total weights & impacts",
               column(
                 width=6,
-                plotOutput("fe_totalWtChart") #weight chart
+                align = "center",
+                plotOutput("fe_totalWtChart"), #weight chart
+                downloadButton(
+                  outputId = "fe_totalWtChartDL",
+                  label = "download this chart",
+                  width = "100%"
+                )
               ),
               column(
                 width=6,
+                align="center",
                 plotOutput("fe_totalImpactChart"), #impact chart
                 downloadButton(
                   outputId = "fe_totalImpactChartDL",
@@ -638,11 +645,19 @@ ui <-
 
             tabPanel(
               title="Download",
-              "Not sure if this is really helping",
-              DTOutput("fe_detailedImpactTable"),
-              downloadButton(
-                outputId = "fe_fullDataDownload",
-                label = "download all data and results (long)"
+              fluidRow(
+                wellPanel(
+                  h3("Download all your entered data and results 
+                     (Excel workbook format)"),
+                  downloadButton(
+                    outputId = "fe_fullDataDownload",
+                    label = "download"
+                  )
+                )
+              ),
+              fluidRow(
+                  h3("Preview of detailed impact table"),
+                  DTOutput("fe_detailedImpactTable")
               )
             )
           
@@ -1080,6 +1095,8 @@ server <- function(input, output) {
       fe_combos_with_impacts_detailed(),
       filter="top",
       rownames=F
+      # ,
+      # class="table table-sm"
       )
   
   
@@ -1100,10 +1117,10 @@ server <- function(input, output) {
     )
   })
   
-  output$fe_totalWtChart <- renderPlot({
-    # draw the weight chart
+  # define the weight chart object
+  fe_totalWtChartObject <- reactive({
     ggplot()+
-      ggtitle("short tons")+
+      ggtitle("Weight (short tons)")+
       theme_539()+
       geom_bar(
         data=fe_combos_with_tons(),
@@ -1114,7 +1131,7 @@ server <- function(input, output) {
       )+
       coord_flip()+
       # the following fill spec works but I can't control colors
-#      scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
+      #      scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
       # meanwhile the following manual scale works when you
       # give the color numbers as a vector WITHOUT NAMES
       scale_fill_manual(values=myPal2)+
@@ -1122,8 +1139,28 @@ server <- function(input, output) {
         axis.text.y = element_text(size=12),
         legend.position="bottom"
       )
+  })
+  
+  output$fe_totalWtChart <- renderPlot({
+    fe_totalWtChartObject()
     }
     ) 
+  
+# modify the following to make a weight chart download  
+  output$fe_totalWtChartDL <-
+    downloadHandler(
+      filename = "fe_totalWtChartDL.png",
+      content = function(file) {
+        ggsave(
+          file,
+          plot = fe_totalWtChartObject(),
+          device="png"
+        )
+      }
+    )
+  
+  
+  
   
   # summing impacts, for the impacts chart
   # here are impacts by LC stage
@@ -1188,20 +1225,24 @@ server <- function(input, output) {
   # define the impact chart object
   fe_totalImpactChartObject <- reactive({
     ggplot()+
+      ggtitle(fe_impact_chart_title())+
       theme_fivethirtyeight()+
       geom_bar(
         data=filter(
           fe_summed_impacts(), 
           impactCategory==input$fe_ImpactCategoryChoice
-        ),
-        aes(x=scenario, y=impact),
-        color="black",
+        ) %>% mutate(statistic="total impact"),
+        aes(x=scenario, y=impact, color=statistic),
         alpha=0.2,
         size=2,
         stat="identity",
         position="stack"
       )+
-      coord_flip()
+      coord_flip()+
+      theme(
+        axis.text.y = element_text(size = 12),
+        legend.position="bottom"
+      )
   })  # close fe_totalImpactChartObject definition
   
     
