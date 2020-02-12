@@ -110,143 +110,143 @@ The following app won't run here... i am just saving it here because the place w
 # multiple files into a zip file.
 
 
-library(shiny)
-library(tidyverse)
-library(zip)
-library(openxlsx)
-
-# make some initial starting data
-myDataAll <-
-  data.frame(
-    xx=rep(letters[1:4], 5),
-    yy=rnorm(20, mean=5, sd=2)
-    )
-
-
-# Define UI for application that draws a histogram
-ui <- fluidPage(
-   
-   # Application title
-   titlePanel("Can i zip it?"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
-        selectInput(
-          inputId = "letterChoice",
-          label = "choose 1+ letters",
-          choices = unique(myDataAll$xx),
-          selected = "a",
-          multiple = TRUE
-        )
-      ),
-      
-      # Show a plot of the generated distribution
-      mainPanel(
-         plotOutput("letterPlot"),
-         downloadButton(
-           outputId = "dataDL",
-           label = "download the data"
-         ),
-         downloadButton(
-           outputId = "chartDL",
-           label = "download the chart image"
-         ),
-         downloadButton(
-           outputId = "excelDL",
-           label = "download an Excel file"
-         )
-         
-         # downloadButton(
-         #   outputID = "zipDL",
-         #   label = "download a zip file"
-      )
-   ) # close sidebarlayout
-   ) # close ui fluidpage
-
-# Define server logic required to draw a histogram
-server <- function(input, output) { 
-  
-  theLetterPlotData <- reactive({
-    myDataAll %>% 
-    filter(xx %in% input$letterChoice)
-  })
-  
-   theLetterPlotObject <- reactive({
-     ggplot()+
-     ggtitle("ye old plot")+
-     geom_point(
-       data=theLetterPlotData(),
-       aes(x=xx, y=yy)
-     )
-   })
-   
-   output$letterPlot <- renderPlot({
-     theLetterPlotObject()
-   })
-   
-   output$dataDL <-
-     downloadHandler(
-       filename = function() {
-         paste("data", ".csv", sep = "")
-       },
-       content = function(file) {
-         write.csv(
-           theLetterPlotData(), 
-           file, 
-           row.names = FALSE
-        )
-       }
-     )
-   
-   output$chartDL <-
-     downloadHandler(
-       filename = "theChart.png",
-       content = function(file) {
-         ggsave(
-           file,
-           plot = theLetterPlotObject(),
-           device="png"
-         )
-       }
-     )
-   
-   output$excelDL <-
-     downloadHandler(
-       filename = function() {
-         paste("theExcel", ".xlsx", sep = "")
-       },
-       content = function(file) {
-         # write.xlsx(
-         #   theLetterPlotData(), 
-         #   file
-         # )
-         myWorkbook <-
-           createWorkbook()
-         addWorksheet(wb = myWorkbook, sheetName = "data")
-         addWorksheet(wb = myWorkbook, sheetName = "chart")
-         writeDataTable(
-           wb = myWorkbook,
-           sheet = "data",
-           x = theLetterPlotData()
-         )
-         # insertImage(
-         #   wb = myWorkbook,
-         #   sheet = "chart",
-         #   file=theChartFileSpec
-         # )
-         saveWorkbook(
-           wb = myWorkbook,
-           file = file
-         )
-       }
-     )
-   
-}
-
-# Run the application 
-shinyApp(ui = ui, server = server)
-
+# library(shiny)
+# library(tidyverse)
+# library(zip)
+# library(openxlsx)
+# 
+# # make some initial starting data
+# myDataAll <-
+#   data.frame(
+#     xx=rep(letters[1:4], 5),
+#     yy=rnorm(20, mean=5, sd=2)
+#     )
+# 
+# 
+# # Define UI for application that draws a histogram
+# ui <- fluidPage(
+#    
+#    # Application title
+#    titlePanel("Can i zip it?"),
+#    
+#    # Sidebar with a slider input for number of bins 
+#    sidebarLayout(
+#       sidebarPanel(
+#         selectInput(
+#           inputId = "letterChoice",
+#           label = "choose 1+ letters",
+#           choices = unique(myDataAll$xx),
+#           selected = "a",
+#           multiple = TRUE
+#         )
+#       ),
+#       
+#       # Show a plot of the generated distribution
+#       mainPanel(
+#          plotOutput("letterPlot"),
+#          downloadButton(
+#            outputId = "dataDL",
+#            label = "download the data"
+#          ),
+#          downloadButton(
+#            outputId = "chartDL",
+#            label = "download the chart image"
+#          ),
+#          downloadButton(
+#            outputId = "excelDL",
+#            label = "download an Excel file"
+#          )
+#          
+#          # downloadButton(
+#          #   outputID = "zipDL",
+#          #   label = "download a zip file"
+#       )
+#    ) # close sidebarlayout
+#    ) # close ui fluidpage
+# 
+# # Define server logic required to draw a histogram
+# server <- function(input, output) { 
+#   
+#   theLetterPlotData <- reactive({
+#     myDataAll %>% 
+#     filter(xx %in% input$letterChoice)
+#   })
+#   
+#    theLetterPlotObject <- reactive({
+#      ggplot()+
+#      ggtitle("ye old plot")+
+#      geom_point(
+#        data=theLetterPlotData(),
+#        aes(x=xx, y=yy)
+#      )
+#    })
+#    
+#    output$letterPlot <- renderPlot({
+#      theLetterPlotObject()
+#    })
+#    
+#    output$dataDL <-
+#      downloadHandler(
+#        filename = function() {
+#          paste("data", ".csv", sep = "")
+#        },
+#        content = function(file) {
+#          write.csv(
+#            theLetterPlotData(), 
+#            file, 
+#            row.names = FALSE
+#         )
+#        }
+#      )
+#    
+#    output$chartDL <-
+#      downloadHandler(
+#        filename = "theChart.png",
+#        content = function(file) {
+#          ggsave(
+#            file,
+#            plot = theLetterPlotObject(),
+#            device="png"
+#          )
+#        }
+#      )
+#    
+#    output$excelDL <-
+#      downloadHandler(
+#        filename = function() {
+#          paste("theExcel", ".xlsx", sep = "")
+#        },
+#        content = function(file) {
+#          # write.xlsx(
+#          #   theLetterPlotData(), 
+#          #   file
+#          # )
+#          myWorkbook <-
+#            createWorkbook()
+#          addWorksheet(wb = myWorkbook, sheetName = "data")
+#          addWorksheet(wb = myWorkbook, sheetName = "chart")
+#          writeDataTable(
+#            wb = myWorkbook,
+#            sheet = "data",
+#            x = theLetterPlotData()
+#          )
+#          # insertImage(
+#          #   wb = myWorkbook,
+#          #   sheet = "chart",
+#          #   file=theChartFileSpec
+#          # )
+#          saveWorkbook(
+#            wb = myWorkbook,
+#            file = file
+#          )
+#        }
+#      )
+#    
+# }
+# 
+# # Run the application 
+# shinyApp(ui = ui, server = server)
+# 
 
 ```
 

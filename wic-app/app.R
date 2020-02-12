@@ -640,7 +640,19 @@ ui <-
             ),
             
             tabPanel(
-              title = "Hotspots & strategies"
+              title = "Hotspots & strategies",
+              fluidRow(
+                column(
+                  width = 6,
+                  align = "center",
+                  plotOutput(outputId = "fe_normalizedComparisonChart")
+                ),
+                column(
+                  width=6,
+                  align = "center",
+                  plotOutput(outputId = "fe_heatmapBaseline")
+                )
+              )
             ),
 
             tabPanel(
@@ -1289,6 +1301,7 @@ server <- function(input, output) {
   # defining the chart
   fe_detailed_tons_chart_object <- reactive({
     ggplot()+
+      ggtitle("Detailed weights (short tons)")+
       theme_539()+
       geom_bar(
         data = fe_detailed_tons_data(),
@@ -1325,10 +1338,33 @@ server <- function(input, output) {
     ungroup()
   })
   
-
+  # defining title for detailed impacts chart
+  fe_detailed_impacts_chart_title <- reactive({
+    paste(
+      # impact category name
+      unique(
+        filter(
+          fe_summed_impacts(), 
+          impactCategory==
+            input$fe_detailedImpactsCategoryChoice)$impactCategory
+      ),
+      " (",
+      # impact category units
+      unique(
+        filter(
+          fe_summed_impacts(), 
+          impactCategory==
+            input$fe_detailedImpactsCategoryChoice)$impactUnits
+      ),
+      ")",
+      sep=""
+    )
+  })
+  
   # defining the detailed impact chart object
   fe_detailed_impacts_chart_object <- reactive({
     ggplot()+
+      ggtitle(fe_detailed_impacts_chart_title())+
       theme_539()+
       geom_bar(
         data = fe_combos_with_impacts_detailed() %>%
@@ -1367,7 +1403,87 @@ server <- function(input, output) {
     fe_detailed_impacts_chart_object()
   })
   
-  # download page
+  # REACTIVE OBJECTS FOR THE HOTSPOTS PAGE
+  # and here are total impacts for the scenario
+  fe_summed_material_impacts <- reactive({
+    summarise(
+      group_by(
+        fe_combos_with_impacts_detailed(), 
+        impactCategory, impactUnits, scenario, material
+      ),
+      impact=sum(impact)
+    ) %>%
+      ungroup() %>%
+      arrange(impactCategory, material, scenario)
+  }) # close reactive
+  
+  fe_hotspot_impacts <- reactive({
+    left_join(
+      fe_summed_material_impacts(),
+      fe_summed_impacts() %>% 
+        filter(scenario == "baseline") %>%
+        rename(baselineMaterialImpact = impact) %>%
+        select(-scenario),
+      by = c("impactCategory", "impactUnits")
+    ) %>%
+    mutate(
+      pctBaselineImpact = impact/baselineMaterialImpact,
+      scenario = factor(scenario, levels = c("baseline", "alternative"))
+    )
+  })
+  
+  fe_normalizedComparisonChartObject <- reactive({
+    ggplot()+
+      theme_539()+
+      ggtitle("'Alternative' scenario impacts (as % of baseline)")+
+      geom_bar(
+        data = fe_hotspot_impacts() %>% filter(scenario=="alternative"),
+        aes(
+          x = impactCategory,
+          y = pctBaselineImpact,
+          fill = material
+        ),
+        stat = "identity",
+        position = "stack"
+      )+
+      coord_flip()+
+      scale_y_continuous(labels=comma)+
+      scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
+      theme(
+        legend.position = "bottom"
+      )
+  })
+  
+  output$fe_normalizedComparisonChart <- 
+    renderPlot(fe_normalizedComparisonChartObject())
+  
+  fe_hotspot_impacts_baseline_chart_object <- reactive({
+    ggplot()+
+      theme_539()+
+      ggtitle("Heatmaps of impacts (% of baseline)")+
+      geom_tile(
+        data=fe_hotspot_impacts(),
+        aes(
+          x=material, 
+          y=impactCategory, 
+          fill=pctBaselineImpact
+        )
+      )+
+      facet_grid(.~scenario)+
+      scale_fill_viridis()+
+      theme(legend.position = "bottom")
+  })
+  
+  output$fe_heatmapBaseline <-
+    renderPlot(fe_hotspot_impacts_baseline_chart_object())
+  
+  output$testTable <- 
+    renderTable(fe_summed_material_impacts())
+  output$testTable2 <-
+    renderTable(fe_hotspot_impacts())
+    
+  
+  # REACTIVE OBJECTS FOR THE DOWNLOAD PAGE
   output$fe_fullDataDownload <-
     downloadHandler(
       filename = function() {
@@ -1400,6 +1516,12 @@ server <- function(input, output) {
           sheet = "detailed impacts",
           x = fe_combos_with_impacts_detailed()
           )
+        addWorksheet(wb = myWorkbook, sheetName = "hotspot impacts")
+        writeDataTable(
+          wb= myWorkbook,
+          sheet = "hotspot impacts",
+          x = fe_hotspot_impacts()
+        )
         saveWorkbook(
           wb = myWorkbook,
           file = file
