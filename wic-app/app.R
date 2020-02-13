@@ -645,7 +645,11 @@ ui <-
                 column(
                   width = 6,
                   align = "center",
-                  plotOutput(outputId = "fe_normalizedComparisonChart")
+                  plotOutput(outputId = "fe_normalizedComparisonChart"),
+                  downloadButton(
+                    outputId = "fe_normalizedComparisonChartDL",
+                    label = "download this chart"
+                  )
                 ),
                 column(
                   width=6,
@@ -1435,7 +1439,7 @@ server <- function(input, output) {
   fe_normalizedComparisonChartObject <- reactive({
     ggplot()+
       theme_539()+
-      ggtitle("'Alternative' scenario impacts (as % of baseline)")+
+      ggtitle("'Alternative' scenario impacts\n(as % of baseline impacts)")+
       geom_bar(
         data = fe_hotspot_impacts() %>% filter(scenario=="alternative"),
         aes(
@@ -1444,33 +1448,54 @@ server <- function(input, output) {
           fill = material
         ),
         stat = "identity",
-        position = "stack"
+        position = "stack",
+        alpha=0.6
       )+
+      geom_hline(
+        yintercept = 1,
+        color = "gray50",
+        size=2,
+        linetype = "dotted"
+        )+
       coord_flip()+
-      scale_y_continuous(labels=comma)+
+      scale_y_continuous(labels=percent)+
+#      scale_x_continuous(labels=comma)+
       scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
       theme(
-        legend.position = "bottom"
+        legend.position = "bottom",
+        panel.grid = element_blank()
       )
   })
   
   output$fe_normalizedComparisonChart <- 
     renderPlot(fe_normalizedComparisonChartObject())
   
+  output$fe_normalizedComparisonChartDL <-
+    downloadHandler(
+      filename = "fe_normalizedComparisonChartDL.png",
+      content = function(file) {
+        ggsave(
+          file,
+          plot = fe_normalizedComparisonChartObject(),
+          device="png"
+        )
+      }
+    )
+  
   fe_hotspot_impacts_baseline_chart_object <- reactive({
     ggplot()+
       theme_539()+
-      ggtitle("Heatmaps of impacts (% of baseline)")+
+      ggtitle("Heatmaps of material impacts\n(as % of baseline total)")+
       geom_tile(
         data=fe_hotspot_impacts(),
         aes(
           x=material, 
           y=impactCategory, 
-          fill=pctBaselineImpact
+          fill=pctBaselineImpact*100
         )
       )+
       facet_grid(.~scenario)+
-      scale_fill_viridis()+
+      scale_fill_viridis(name="% of baseline")+
       theme(legend.position = "bottom")
   })
   
