@@ -268,12 +268,7 @@ ui <-
             ),
             column(
               width=6,
-              plotOutput("wvi_chart"),
-              downloadButton(
-                outputId="wvi_chart_data_download",
-                label="download this chart data",
-                width="100%"
-              )
+              plotOutput("wvi_chart")
             )
           ),
           fluidRow(
@@ -297,11 +292,11 @@ ui <-
             ),
             column(
               width=4,
-              selectInput(
+              checkboxGroupInput(
                 inputId="wvi_scenario_choice",
-                label="choose a management scenario",
-                choices=unique(wicf_weight_summaries$scenario),
-                selected="actual"
+                label = "choose management scenario(s)",
+                choices = unique(wicf_weight_summaries$scenario),
+                selected = "actual"
               )
             )
           )
@@ -444,10 +439,8 @@ ui <-
           sidebarLayout(
             sidebarPanel(
               width=3,
-              h1("IMPACT DISPROPORTIONALITY"),
-              h5("WHAT THIS CHART SHOWS"),
+              h3("IMPACT DISPROPORTIONALITY"),
               "blah blah",
-              h5("WHAT TO LOOK OUT FOR"),
               "blah blah"
             ),
             mainPanel(
@@ -467,17 +460,10 @@ ui <-
           title="recycling and its limits (ARR)",
           sidebarLayout(
             sidebarPanel(
-              h1("RECYCLING AND ITS LIMITS"),
+              h3("RECYCLING AND ITS LIMITS"),
               width=3,
-              wellPanel(
-                h5("WHAT THIS PAGE SHOWS"),
-                "blah blah",
-                textOutput("arr_statement")
-              ),
-              wellPanel(
-                h5("WHAT IT MEANS"),
-                "blah blah"
-              )
+              "blah blah",
+              textOutput("arr_statement")
             ), # close sidebarpanel for "recycling and its limits"
             mainPanel(
               fluidRow(
@@ -521,15 +507,9 @@ ui <-
         sidebarLayout(
         sidebarPanel(
           width=3,
-          h1("RECYCLING VS. REDUCTION"),
-          wellPanel(
-            h4("WHAT THIS PAGE SHOWS"),
-            "blah blah"
-          ),
-          wellPanel(
-            h4("WHAT IT MEANS"),
-            "blah blah"
-          )
+          h3("RECYCLING VS. REDUCTION"),
+          "blah blah",
+          "blah blah"
         ), # close sidebarPanel
         mainPanel(
       ) # close mainpanel
@@ -541,7 +521,7 @@ ui <-
         sidebarLayout(
           sidebarPanel(
             width=3,
-            h1("STRATEGY CHART"),
+            h3("STRATEGY CHART"),
             "blah blah"
           ),
           mainPanel(
@@ -707,7 +687,7 @@ server <- function(input, output) {
     wicf_weights %>% 
       filter(
         wasteshed==input$wvi_wasteshed_choice,
-        scenario==input$wvi_scenario_choice,
+        scenario %in% input$wvi_scenario_choice,
         optVariant %in% 
           c("actual", "dispose_all", input$wvi_impact_cat_choice)
       )
@@ -717,7 +697,7 @@ server <- function(input, output) {
     wicf_weight_summaries %>% 
       filter(
         wasteshed==input$wvi_wasteshed_choice,
-        scenario==input$wvi_scenario_choice,
+        scenario %in% input$wvi_scenario_choice,
         optVariant %in% 
           c("actual", "dispose_all", input$wvi_impact_cat_choice)
       )
@@ -729,29 +709,36 @@ server <- function(input, output) {
     ggtitle("Weights and recovery rates")+
     theme_539()+
     geom_bar(
-      data=wrr_chart_data_1(),
+      data = wrr_chart_data_2(),
       aes(
-        x = factor(material, levels=material_sort_order), 
-        y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
+        x = material,
+        y = tons,
+        fill = scenario,
+        color = scenario
       ),
-      stat="identity"
+      stat = "identity",
+      position = "dodge",
+      alpha=0.6
     )+
     geom_text(
       data=wrr_chart_data_2(),
       aes(
         x=material, 
         y=tons,
-        label=percent(round(wbrr, 2))
+        label=percent(round(wbrr, 2)),
+        color=scenario
       ),
-      hjust=-0.1
+      hjust=-0.15
     )+
     scale_y_continuous(name="short tons", labels=comma)+
     coord_flip()+
-    scale_colour_viridis(discrete=TRUE)+
-    scale_fill_viridis(discrete=TRUE)+
-    scale_alpha_manual(values=c(0.25,0.75))+
+    scale_color_manual(values=myPal2[c(1,3,2)])+
+    scale_fill_manual(values=myPal2[c(1,3,2)])+
+#    scale_colour_viridis(begin=0.32, end =1, discrete=TRUE)+
+#    scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
+#    scale_alpha_manual(values=c(0.25,0.75))+
     theme(
-      legend.position=c(0.7,0.2),
+      legend.position="bottom",
       axis.title=element_text(),
       axis.title.y=element_blank(),
       axis.title.x=element_text()
@@ -765,7 +752,7 @@ server <- function(input, output) {
       filter(
         impactCategory==input$wvi_impact_cat_choice,
         wasteshed == input$wvi_wasteshed_choice,
-        scenario == input$wvi_scenario_choice,
+        scenario %in% input$wvi_scenario_choice,
         optVariant %in%
           c("actual", "dispose_all", input$wvi_impact_cat_choice)
       )
@@ -780,36 +767,23 @@ server <- function(input, output) {
           data=wvi_chart_data(),
           aes(
             x=factor(material, levels=material_sort_order), 
-            y=impact
+            y=impact,
+            fill = scenario
             ),
-          alpha=0.5,
+          alpha=0.6,
           stat="identity",
-          position="stack"
+          position="dodge"
         )+
+        scale_color_manual(values=myPal2[c(1,3,2)])+
+        scale_fill_manual(values=myPal2[c(1,3,2)])+
         coord_flip()+
         theme(
-          legend.position = "none",
+          legend.position = "bottom",
           axis.title=element_text(),
           axis.title.y=element_blank(),
           axis.title.x=element_text()
           )
     })
-  
-  
-  
-  output$wvi_chart_data_download <-
-    downloadHandler(
-#      filename="wvi_chart_data_download.csv",
-      filename="wvi_chart_data_download.xlsx",
-      content = function(file) {
-         write.xlsx(
-           wvi_chart_data(),
-           file
-         )
-  #      write.csv(wvi_chart_data(), file, row.names = F)
-      }
-    )
-  
   
   # generating output for the where impacts come from page
 
@@ -928,7 +902,7 @@ server <- function(input, output) {
       heatmaply(
         x=hm_15ac(), labRow = hm_15ab(),
         main="heatmap of impact intensities",
-        colors = viridis( n=256, begin=0, end=1, option="plasma"),
+        colors = viridis( n=256, begin=0, end=1, option="viridis"),
         Rowv = FALSE
       )
     )
@@ -1449,7 +1423,24 @@ server <- function(input, output) {
         ),
         stat = "identity",
         position = "stack",
-        alpha=0.6
+        alpha=0.5
+      )+
+      geom_bar(
+        data = 
+          fe_hotspot_impacts() %>% 
+          filter(scenario=="alternative") %>%
+          group_by(
+            impactCategory
+          ) %>%
+          summarise(pctBaselineImpact=sum(pctBaselineImpact)),
+        aes(
+          x=impactCategory,
+          y=pctBaselineImpact
+        ),
+        stat = "identity",
+        fill = NA,
+        color = "black",
+        size = 1.6 
       )+
       geom_hline(
         yintercept = 1,
@@ -1459,8 +1450,10 @@ server <- function(input, output) {
         )+
       coord_flip()+
       scale_y_continuous(labels=percent)+
+      scale_fill_manual(values=myPal2)+
+      scale_color_manual(values=myPal2)+
 #      scale_x_continuous(labels=comma)+
-      scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
+#      scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
       theme(
         legend.position = "bottom",
         panel.grid = element_blank()
