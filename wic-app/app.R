@@ -239,25 +239,22 @@ ui <-
       
       # lay out weights, recovery rates, & impacts page
       tabPanel(
-        title="weights, recovery rates, & impacts",
+        title="weights vs. impacts",
         sidebarLayout(
         sidebarPanel(
-          h3("WEIGHTS, RECOVERY RATES, & IMPACTS"),
+          h3("WEIGHTS VS. IMPACTS"),
           width=3,
           "This page shows how the weights of solid waste 
           materials (left side of the page) relate 
           to the total life cycle environmental impacts for 
-          those same materials (right side of the page).  
-          The weight chart also relates how much of that 
-          waste was recycled or otherwise recovered.",
+          those same materials (right side of the page).",
           h5(""),
           "You'll probably notice that weight
           doesn't always do a good job of indicating 
           impacts.  For example, electronics typically have
           extremely large life cycle impacts compared to
           weight, whereas yard debris has low impacts 
-          compared to weight.  Similarly, a high recovery 
-          (recycling) rate doesn't imply low life cycle impacts."
+          compared to weight."
         ), # close sidebar panel for weights recovery rates & impacts page
         mainPanel(
           width=9,
@@ -311,26 +308,27 @@ ui <-
             sidebarPanel(
               width=3,
               h3("WHERE IMPACTS COME FROM"),
+              "The weight chart on the left shows the tonnage 
+              of materials in the solid waste stream, as well 
+              as how much of that waste was recycled or otherwise
+              recovered.",
+              h5(""),
               "The impact chart on the right 
-              shows how net life cycle impacts 
-              of materials are calculated.  The net 
-              impact (the heavy black lines) are the sum of impacts
+              shows how life cycle impacts 
+              of materials are calculated.  The net, or total, life 
+              cycle impact is shown with heavy black lines.  This
+              is the sum of impacts
               for the life cycle stages of production, end-of-life 
-              transport, and end-of-life treatment.  If there 
+              transport, and end-of-life treatment (such as 
+              landfilling or recycling).  If there 
               has been recycling or other recovery activity, 
               then the end-of-life impact may be negative, which
-              lowers the net impact.  You can try changing the 
+              lowers the net impact.",
+              h5(""),
+              "You can try changing the 
               management scenario to see if increasing 
               disposal or recovery will substantially change the 
-              net impacts.",
-              h5(""),
-              "A bit of experimenting with this chart and its 
-              options will start to suggest several things.  
-              First, the great bulk of impacts associated with 
-              materials come from production. Recycling activity 
-              usually reduces those impacts but can't entirely
-              eliminate them.  Second, end-of-life transportation 
-              impacts are usually relatively small."
+              net impacts."
             ),
             mainPanel(
               width=9,
@@ -414,6 +412,9 @@ ui <-
           ), # end sidebarPanel
           mainPanel(
             width=9,
+            fluidRow(
+              tableOutput(outputId = "hm14a_table")
+            ),
             fluidRow(
               plotlyOutput(outputId = "hm_chart_pctImpact")
             ),
@@ -706,7 +707,7 @@ server <- function(input, output) {
   # generating output for the weight and recovery rate tab
   output$wrr_chart <- renderPlot({
   ggplot()+
-    ggtitle("Weights and recovery rates")+
+    ggtitle("Weights (short tons)")+
     theme_539()+
     geom_bar(
       data = wrr_chart_data_2(),
@@ -720,16 +721,16 @@ server <- function(input, output) {
       position = "dodge",
       alpha=0.6
     )+
-    geom_text(
-      data=wrr_chart_data_2(),
-      aes(
-        x=material, 
-        y=tons,
-        label=percent(round(wbrr, 2)),
-        color=scenario
-      ),
-      hjust=-0.15
-    )+
+    # geom_text(
+    #   data=wrr_chart_data_2(),
+    #   aes(
+    #     x=material, 
+    #     y=tons,
+    #     label=percent(round(wbrr, 2)),
+    #     color=scenario
+    #   ),
+    #   hjust=-0.15
+    # )+
     scale_y_continuous(name="short tons", labels=comma)+
     coord_flip()+
     scale_color_manual(values=myPal2[c(1,3,2)])+
@@ -758,6 +759,12 @@ server <- function(input, output) {
       )
   })
   
+  # wvi_chart_title <- reactive({
+  #   paste(
+  #     
+  #   )
+  # })
+  
   output$wvi_chart <-
     renderPlot({
       ggplot()+
@@ -770,11 +777,12 @@ server <- function(input, output) {
             y=impact,
             fill = scenario
             ),
-          alpha=0.6,
+          alpha=0.2,
           stat="identity",
-          position="dodge"
+          position="dodge",
+          color="black",
+          size=1
         )+
-        scale_color_manual(values=myPal2[c(1,3,2)])+
         scale_fill_manual(values=myPal2[c(1,3,2)])+
         coord_flip()+
         theme(
@@ -786,40 +794,66 @@ server <- function(input, output) {
     })
   
   # generating output for the where impacts come from page
+  
+  wicf_weight_chart_object <- reactive({
+    ggplot()+
+      theme_539()+
+      ggtitle("Weights and recovery rates")+
+      geom_bar(
+        data=
+          wicf_weights %>%
+          filter(
+            wasteshed==input$wicf_wasteshed_choice,
+            scenario==input$wicf_scenario_choice,
+            optVariant %in% 
+              c("actual", "dispose_all", 
+                input$wicf_impactCategory_choice
+              )
+          ),
+        aes(
+          x=material,
+          y=tons,
+          color=umbDisp,
+          fill=umbDisp,
+          alpha=umbDisp
+        ),
+        stat="identity",
+        position="stack"
+      ) +
+      geom_text(
+        data=wicf_weight_summaries %>%
+          filter(
+            wasteshed == input$wicf_wasteshed_choice,
+            scenario == input$wicf_scenario_choice,
+            optVariant %in% 
+              c("actual", "dispose_all", 
+                input$wicf_impactCategory_choice
+                )
+            ),
+        aes(
+          x=material, 
+          y=tons,
+          label=percent(round(wbrr, 2))
+        ),
+        hjust=-0.15
+      )+
+      scale_fill_manual(values=myPal2)+
+      scale_color_manual(values=myPal2)+
+      coord_flip()+
+      theme(
+        panel.grid = element_blank(),
+        axis.ticks = element_line()
+      )
+  }) # close plot definition for wicf_weight_chart_object
 
   output$wicf_weight_chart <- renderPlot({
-    ggplot()+
-    theme_539()+
-    ggtitle("Weight chart")+
-    geom_bar(
-      data=
-        wicf_weights %>%
-        filter(
-          wasteshed==input$wicf_wasteshed_choice,
-          scenario==input$wicf_scenario_choice,
-          optVariant %in% 
-            c("actual", "dispose_all", 
-              input$wicf_impactCategory_choice
-              )
-        ),
-      aes(
-        x=material,
-        y=tons,
-        color=umbDisp,
-        fill=umbDisp,
-        alpha=umbDisp
-      ),
-      stat="identity",
-      position="stack"
-    ) +
-    coord_flip()
-  }
-  ) # close plot definition for wicf_weight_chart
+    wicf_weight_chart_object()
+  }) 
 
   output$wicf_impact_chart <- renderPlot({  
     ggplot()+
     theme_539()+
-    ggtitle("impact chart")+
+    ggtitle("Impacts")+
     geom_bar(
       data=
         wicf_impacts_by_lcstage %>%
@@ -858,14 +892,23 @@ server <- function(input, output) {
       ),
       color="black",
       fill=NA,
-      size=2,
+      size=1.5,
       stat="identity"
     )+
-    coord_flip()
+    scale_color_manual(values=myPal2)+
+    scale_fill_manual(values=myPal2)+
+    coord_flip()+
+    theme(
+      panel.grid = element_blank(),
+      axis.ticks = element_line()
+    )
   }) # close definition of wicf_impact_chart
   
   # REACTIVE OBJECTS FOR THE HEATMAP PAGE
   # second try: make a plotly heatmap from input-filtered data
+  
+  output$hm14a_table <- renderTable({hm_14a})
+  
   hm_15aa <- reactive({
     hm_14a %>%
       filter(wasteshed==input$hm_wasteshed_choice) %>%
