@@ -91,6 +91,28 @@ wicf_impacts_by_lcstage <- readRDS(
 )
 
 # DATA FOR THE HEATMAP PAGE
+# this is a new version... it probably could be done back in the pre-
+# processing and included in wicf_impacts_net.  
+# but at this point i'm just trying it.
+hm_data_1 <-
+  wicf_impacts_net %>%
+  filter(scenario=="actual") %>%
+  group_by(wasteshed, impactCategory, impactUnits) %>%
+  summarise(impact=sum(impact)) %>%
+  rename(actualImpact = impact) %>%
+  ungroup()
+
+hm_data_2 <-
+  left_join(
+    wicf_impacts_net,
+    hm_data_1,
+    by=c("wasteshed", "impactCategory", "impactUnits")
+  ) %>%
+  mutate(pctActual = impact/actualImpact)
+
+
+
+# older more complex version of heatmap data..
 # getting the weight portion flipped
 hm_11 <- 
   weight_vs_impact_chart_data %>%
@@ -394,15 +416,7 @@ ui <-
             food waste often represents a large portion of 
             water use impacts.  Each column totals to 100% of 
             the wasteshed's total impacts for that impact 
-            category.  Float your pointer over a 
-            square to see the numeric data.",
-            h5(""),
-            "In addition, this chart tries to group 
-            similarly sized impacts together.  For example, 
-            high water consumption impacts are often 
-            grouped with high eutrophication impacts.  
-            These groupings are expressed by the wiry 
-            dendrogram across the top of the chart.",
+            category, under the actual scenario.",
             h5(""),
             "This chart is likely to show you that 
             materials are not at all equal!  Certain kinds 
@@ -413,10 +427,7 @@ ui <-
           mainPanel(
             width=9,
             fluidRow(
-              tableOutput(outputId = "hm14a_table")
-            ),
-            fluidRow(
-              plotlyOutput(outputId = "hm_chart_pctImpact")
+              plotOutput(outputId = "hm_new_chart")
             ),
             fluidRow(
               wellPanel(
@@ -425,9 +436,26 @@ ui <-
                   label="choose a wasteshed",
                   choices = unique(hm_13$wasteshed),
                   selected = "Metro"
+                ),
+                radioButtons(
+                  inputId="hm_scenario_choice",
+                  label="choose a management scenario",
+                  choices=c("actual", "dispose_all", "optimal"),
+                  selected="actual",
+                  inline = TRUE
                 )
               )
             )
+            # ,
+            # fluidRow(
+            #   dataTableOutput(outputId="myTestTable")
+            # ),
+            # fluidRow(
+            #   dataTableOutput(outputId="myTestTable2")
+            # ),
+            # fluidRow(
+            #   plotlyOutput(outputId = "hm_chart_pctImpact")
+            # )
             #,
             #tableOutput("hm_matrix")
           ) # end mainPanel
@@ -907,7 +935,52 @@ server <- function(input, output) {
   # REACTIVE OBJECTS FOR THE HEATMAP PAGE
   # second try: make a plotly heatmap from input-filtered data
   
-  output$hm14a_table <- renderTable({hm_14a})
+  hm_new_chart_object <- reactive({
+    ggplot()+
+      theme_539()+
+      ggtitle("new heatmap")+
+      geom_tile(
+        data = 
+          hm_data_2 %>%
+          filter(
+            wasteshed == input$hm_wasteshed_choice,
+            scenario == input$hm_scenario_choice
+          ) %>%
+          mutate(material=factor(material, levels = material_sort_order)),
+        aes(
+          y=material, 
+          x=impactCategory, 
+          fill=pctActual*100
+        )
+      )+
+      geom_text(
+        data=
+          hm_data_2 %>%
+          filter(
+            wasteshed == input$hm_wasteshed_choice,
+            scenario == input$hm_scenario_choice
+          ) %>%
+          mutate(material=factor(material, levels = material_sort_order)),
+        aes(
+          y=material,
+          x=impactCategory,
+          label=round(pctActual*100,1)
+        ),
+        color="gray80"
+      )+
+      scale_fill_viridis()+
+      theme(
+        panel.grid = element_blank(),
+        axis.ticks = element_line()
+      )
+  })
+  
+  output$hm_new_chart <- renderPlot({
+    hm_new_chart_object()
+  })
+  
+  output$myTestTable <- renderDataTable({hm_data_1})
+  output$myTestTable2 <- renderDataTable({hm_data_2})
   
   hm_15aa <- reactive({
     hm_14a %>%
