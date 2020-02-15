@@ -110,7 +110,27 @@ hm_data_2 <-
   ) %>%
   mutate(pctActual = impact/actualImpact)
 
+normalized_impacts_1 <-
+  hm_data_2 %>%
+  group_by(wasteshed, impactCategory, impactUnits, scenario) %>%
+  summarise(
+    impact=sum(impact, na.rm=T)
+  ) %>%
+  ungroup()
 
+normalized_impacts_2 <-
+  normalized_impacts_1 %>% 
+  filter(scenario=="actual") %>%
+  rename(actualImpact = impact) %>%
+  select(-scenario)
+
+normalized_impacts_3 <-
+  left_join(
+    normalized_impacts_1,
+    normalized_impacts_2,
+    by = c("wasteshed", "impactCategory", "impactUnits")
+  ) %>%
+  mutate(pctImpact = impact/actualImpact)
 
 # older more complex version of heatmap data..
 # getting the weight portion flipped
@@ -484,6 +504,54 @@ ui <-
       # ui for the Ways to reduce impacts section
       navbarMenu(
         title="Ways to reduce impacts",
+        
+        tabPanel(
+          title = "recycling and its limits",
+          sidebarLayout(
+            sidebarPanel(
+              width = 3,
+              h3("NORMALIZED IMPACTS"),
+              "This chart explores how recycling- oriented 
+               waste management scenarios affect impacts in
+               multiple impact categories."
+            ),
+            mainPanel(
+              width=9,
+              fluidRow(
+                width=12,
+                column(
+                  width=6,
+                  plotOutput(outputId="normalized_chart")
+                )
+              ),
+              fluidRow(
+                width=12,
+                column(
+                  width=6,
+                  selectInput(
+                    inputId="normalized_wasteshed_choice",
+                    label = "choose a wasteshed",
+                    choices = unique(normalized_impacts_3$wasteshed),
+                    selected = "Metro"
+                  )
+                ),
+                column(
+                  width=6,
+                  checkboxGroupInput(
+                    inputId="normalized_scenario_choice",
+                    label = "choose scenario(s)",
+                    choices = c("actual", "dispose_all", "optimal"),
+                    selected = "optimal",
+                    inline = TRUE
+                  )
+                )
+              ),
+              fluidRow(
+                dataTableOutput(outputId="normalized_results")
+              )
+            )  
+          ) # close sidebar layout for normalized view
+        ), # close tabPanel for normalized view
         
         tabPanel(
           title="recycling and its limits (ARR)",
@@ -1022,7 +1090,53 @@ server <- function(input, output) {
         Rowv = FALSE
       )
     )
+
   
+  # reactive objects for the recycling and its limits page
+  
+  normalized_chart_object <- reactive({
+    ggplot()+
+    theme_539()+
+    ggtitle("Total impacts of recovery-oriented\nmanagement scenarios (as %\n of 'actual' scenario impact)")+
+    geom_bar(
+      data = 
+        normalized_impacts_3 %>%
+        filter(
+          wasteshed == input$normalized_wasteshed_choice,
+          scenario %in% input$normalized_scenario_choice
+        ),
+      aes(
+        x = impactCategory,
+        y = pctImpact,
+        color = scenario,
+        fill = scenario
+      ),
+      stat="identity",
+      position = "dodge",
+      alpha = 0.6
+    )+
+    geom_hline(
+      yintercept = 1, 
+      linetype="dotted", 
+      size=2,
+      color = "gray50"
+    )+
+    scale_y_continuous(labels=percent)+
+    scale_color_manual(values=myPal2)+
+    scale_fill_manual(values=myPal2)+
+    coord_flip()+
+    theme(
+      panel.grid = element_blank(),
+      axis.ticks = element_line()
+    )
+  })
+  
+  output$normalized_chart <- 
+    renderPlot({normalized_chart_object()})
+  
+  output$normalized_results <- 
+    renderDataTable(normalized_impacts_3)
+    
   # generating output objects for the 
   # recycling and its limits (ARR) page
   
