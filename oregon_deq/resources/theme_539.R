@@ -11,7 +11,11 @@
 # creating a custom theme
 theme_539 <- function() {
   theme_fivethirtyeight() +
-  theme(rect=element_rect(fill="transparent"))
+  theme(
+    rect=element_rect(fill="transparent"),
+    panel.grid = element_blank(),
+    axis.ticks = element_line()
+  )
 }
 
 # creating a palette using "official" Oregon DEQ colors
