@@ -27,6 +27,7 @@ library(rmarkdown)
 library(svglite)
 library(ggthemes)
 library(broom)
+library(ggforce)
 ```
 Run some code to set a graphic style.
 
@@ -1146,3 +1147,302 @@ ggplot()+
   )+
   coord_flip()
 ```
+
+# those overall pie charts
+One trivial -- yet important -- thing is the pie chart of total impacts of materials compared to total impacts of waste.
+
+Now two pie charts based on CBEI data.  First, one that just shows CBEI results.
+
+```{r}
+#Then figure out the total impacts by wasteshed (based on CBEI).
+impacts_from_CBEI_by_metacategory <-
+  data.frame(
+    unitOM = "MTCO2E",
+    year = 2016,
+    meta_category = c("Electricity", "Fuels", "Services", "Materials"),
+    impact = c(9.5, 19.6, 23.1, 36.5)*1000000,
+    stringsAsFactors = FALSE
+  )
+```
+
+blah
+
+```{r fig.width=3.1, fig.height=3.1}
+# a four-step palette based on viridis
+myPal <- 
+  deqPal15[c("blue_bold", "green_bold", "lime_bold", "yellow_bold")]
+myPal2 <- as.character(myPal)
+
+#pie chart with materials portion exploded!
+temp_1 <-
+  mutate(
+    impacts_from_CBEI_by_metacategory,
+#    explodeFactor=-0.1
+    explodeFactor = case_when(meta_category == "Materials" ~ 0.1, T~0)
+  )
+temp_2 <-
+  temp_1[c(4,3,2,1),] %>%
+  mutate(
+    labelX = c(0.6, -0.1, -0.5, -0.29),
+    labelY = c(0.2, -0.5, 0.1, 0.68),
+    labelToPrint = paste(
+      meta_category,
+      "\n",
+      format(impact/1000000, digits = 2),
+      sep=""
+    )
+  )
+ggplot()+
+  ggtitle("Major sources of Oregon's\nconsumption-based emissions")+
+  theme_539()+
+  geom_arc_bar(
+    data = temp_2,
+    aes(
+      x0 = 0,
+      y0 = 0, 
+      r0 = 0, 
+      r = 1,
+      amount = impact/1000000, #impact in millions 
+      fill = meta_category, 
+#      color = meta_category,
+      alpha = meta_category,
+      explode = c(0,0,-0.1,0)
+    ), 
+   color = "white",
+   stat = 'pie',
+   sep = 0
+    )+ 
+  geom_text(
+    data = temp_2,
+    aes(
+      x = labelX,
+      y = labelY,
+      label = labelToPrint
+    ),
+    color = "white",
+    size = 2.7,
+    fontface = "bold"
+  )+
+  coord_fixed()+
+  # scale_color_manual(
+  #   values=c("darkorange1", "yellowgreen",   "aquamarine4", "steelblue4")
+  # )+
+  scale_fill_manual(
+    values=rev(myPal2)
+  )+
+  scale_alpha_manual(
+    values=c(0.75,0.75,0.75,0.75)
+  )+
+  theme(
+    plot.title = element_text(hjust=0.5, size=12),
+    rect=element_rect(fill=NA),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  )
+```
+
+Now let's do the variant of that with the materials impacts split up into slivers.
+
+```{r}
+# the CBEI data
+temp_3 <-
+  select(temp_2, -unitOM, -year) 
+# the non-material part of the CBEI data
+temp_4 <-
+  filter(temp_3, meta_category != "Materials")
+# the material part of the CBEI data
+temp_5 <-
+  filter(temp_3, meta_category == "Materials") %>%
+  rename(total_impact = impact)
+# the non-material stuff will stay the same
+# the material stuff needs to be divided up.
+temp_6 <-
+  full_join(
+    data.frame(
+      filter(
+        select(total_impact_of_waste_by_scenario_with_savings, -unitOM),
+        scenario == "RecoverMax" | scenario == "newSavings"
+      ),
+      meta_category = "Materials"
+    ),
+    temp_5,
+    by = "meta_category"
+  )
+# figuring the portion of material impacts not in the waste stream
+temp_7 <-
+  summarise(
+    group_by(
+      temp_6,
+      explodeFactor, labelX, labelY, labelToPrint
+    ),
+    impact = sum(impact),
+    total_impact = mean(total_impact)
+  ) %>%
+  ungroup() %>%
+  mutate(scenario = "materials outside of wastestream") %>%
+  select(scenario, impact, total_impact, explodeFactor,
+         labelX, labelY, labelToPrint
+  )
+# merging with total
+temp_8 <-
+  bind_rows(
+    temp_7,
+    temp_6
+  ) %>%
+  select(-meta_category)
+# switching the order and fixing values
+temp_9 <-
+  temp_8[c(3,2,1),] %>% 
+  mutate(
+    impact = 
+      ifelse(
+        scenario == "materials outside of wastestream",
+        total_impact - sum(temp_6$impact),
+        impact
+      )
+  ) %>%
+  select(-total_impact, -explodeFactor, -labelX, -labelY, -labelToPrint) %>%
+  rename(meta_category = scenario)
+# now merge that with 
+temp_10 <-
+  bind_rows(
+    temp_9,
+    temp_4
+  )
+# ok, it's got the form I need to plot
+```
+This plot is pretty complex to construct.  Lots of manual data entry here.
+
+```{r fig.width=3.2, fig.height=3.2}
+temp_11 <-
+  mutate(
+    temp_10,
+    explodeFactor = 
+      case_when(
+        meta_category == "newSavings" ~ 0.2,
+        meta_category == "RecoverMax" ~ 0.1,
+        meta_category == "materials outside of wastestream" ~ 0.1,
+        TRUE ~ 0
+      ),
+    labelX =
+      case_when(
+        meta_category == "newSavings" ~ 0.6,
+        meta_category == "RecoverMax" ~ 0.515,
+        meta_category == "materials outside of wastestream" ~ 0.65,
+        TRUE ~ labelX
+      ),
+    labelY =
+      case_when(
+        meta_category == "newSavings" ~ 1.2,
+        meta_category == "RecoverMax" ~ 0.62,
+        meta_category == "materials outside of wastestream" ~ -0.2,
+        TRUE ~ labelY
+      ),
+    labelToPrint =
+      case_when(
+        meta_category == "newSavings" ~
+          paste(
+            "Potential of additional\nrecovery: ",
+            format(impact/1000000, digits = 2),
+            sep=""
+          ),
+        meta_category == "RecoverMax" ~
+          paste(
+            "Unrecoverable\nimpacts of\nwaste: ",
+            format(impact/1000000, digits = 2),
+            sep=""
+          ),
+        meta_category == "materials outside of wastestream" ~
+          paste(
+            "Materials\noutside of\nwaste\nstream: \n",
+            format(impact/1000000, digits = 2),
+            sep=""
+          ),
+        TRUE ~ 
+          paste(
+            meta_category,
+            "\n",
+            format(impact/1000000, digits = 2),
+          sep=""
+          )
+      )
+  )
+ggplot()+
+  ggtitle("Potential of maximized\nrecovery to reduce\nstatewide emissions")+
+  theme_fivethirtyeight()+
+  geom_arc_bar(
+    data = temp_11,
+    aes(
+      x0 = 0,
+      y0 = 0, 
+      r0 = 0, 
+      r = 1,
+      amount = impact/1000000, #impact in millions 
+      fill = meta_category, 
+      color = meta_category,
+      alpha = meta_category,
+      explode = explodeFactor
+    ), 
+   stat = 'pie',
+   sep = 0
+    )+ 
+  geom_text(
+    data = temp_11,
+    aes(
+      x = labelX,
+      y = labelY,
+      label = labelToPrint,
+      color = meta_category,
+      size = meta_category
+    ),
+    lineheight=0.9
+#    size = 2.8
+  )+
+  coord_fixed()+
+  scale_color_manual(
+     values=
+       c(
+         "white", 
+         "white",
+         "aquamarine4", 
+         "aquamarine4", 
+         "aquamarine4", 
+         "white"
+         )
+  )+
+  scale_fill_manual(
+    values=c(
+      "darkorange1", 
+      "yellowgreen", 
+      "aquamarine4", 
+      NA, 
+      "aquamarine4", 
+      "steelblue4"
+      )
+  )+
+  scale_alpha_manual(
+    values=c(0.75,0.75,0.25,0.5,0.25,0.75)
+  )+
+  scale_size_manual(
+    values = 
+      c(
+      2.7,
+      2.7,
+      2.1,
+      2.7,
+      2.1,
+      2.7
+      )
+  )+
+  theme(
+    plot.title = element_text(hjust=0.5, size=12),
+    rect=element_rect(fill=NA),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    axis.text = element_blank()
+  )
+```
+Whew, those were laborious.
+
