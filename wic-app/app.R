@@ -32,6 +32,7 @@ library(plotly)
 library(heatmaply)
 library(scales)
 library(openxlsx)
+library(knitr)
 
 # importing some graphic conventions (to be expanded later)
 source(file="../oregon_deq/resources/theme_539.R")
@@ -739,12 +740,27 @@ ui <-
             tabPanel(
               title="Download",
               fluidRow(
-                wellPanel(
-                  h3("Download all your entered data and results 
-                     (Excel workbook format)"),
-                  downloadButton(
-                    outputId = "fe_fullDataDownload",
-                    label = "download"
+                width = 12,
+                column(
+                  width = 6,
+                  wellPanel(
+                    h3("Download all your entered data and results 
+                       (Excel workbook format)"),
+                    downloadButton(
+                      outputId = "fe_fullDataDownload",
+                      label = "download"
+                    )
+                  )
+                ),
+                column(
+                  width=6,
+                  wellPanel(
+                    h3("Download a formatted report with results
+                       and charts"),
+                    downloadButton(
+                      outputId = "fe_md_report",
+                      label = 'Download html report'
+                    )
                   )
                 )
               ),
@@ -1732,6 +1748,40 @@ server <- function(input, output) {
     
   
   # REACTIVE OBJECTS FOR THE DOWNLOAD PAGE
+  output$fe_md_report<-downloadHandler(
+    filename = function() {
+      paste(
+        "fe_md_report_test",
+        "_", 
+        Sys.Date() ,
+        ".html", 
+        sep=""
+      )
+    },
+    content=function(file){
+      
+      #create list of characteristics
+      #set up parameters to pass to our Rmd document
+      params <- 
+        list(
+          p_fe_data_entry_confirmation = 
+            fe_mat_disp_combos_2(),
+          p_fe_normalizedComparisonChartObject = 
+            fe_normalizedComparisonChartObject()
+          )
+      
+      rmarkdown::render(
+        input = "fe_md_report.Rmd", 
+        output_file=file,
+        params=params,
+        clean=TRUE,
+        envir=new.env(parent= globalenv())
+      )
+    }
+  )
+  
+  
+  
   output$fe_fullDataDownload <-
     downloadHandler(
       filename = function() {
@@ -1776,10 +1826,6 @@ server <- function(input, output) {
         )
       }
     )
-  
-
-  
-  
   
   } # close server
 

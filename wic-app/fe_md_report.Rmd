@@ -1,0 +1,45 @@
+---
+params:
+  p_fe_data_entry_confirmation: NA
+  p_fe_normalizedComparisonChartObject: NA
+  
+---
+
+```{r setup-packages-functions, include=FALSE}
+library(knitr)
+```
+
+#### *Waste Impact Calculator*
+
+system date?
+system time?
+
+# Your report
+
+This is my first paragraph, and (two spaces coming)  
+this is my second paragraph, and (one space coming) 
+this is my third paragraph
+
+Here is some `verbatim code` for your erudification
+
+Inputs
+
+* Your baseline scenario involved XXX tons, of which XXX (yy%) were recovered.
+* Your alternative scneario involved XXX tons, of which XXX (yy%) were recovered.
+
+Here are the materials and weights you entered.
+
+```{r echo=FALSE}
+kable(params$p_fe_data_entry_confirmation)
+```
+
+Outputs
+
+* Your alternative scenario had lifecycle impacts of the following magnitudes, compared to the baseline scenario:
+
+```{r echo=FALSE}
+print(params$p_fe_normalizedComparisonChartObject)
+```
+
+
+
