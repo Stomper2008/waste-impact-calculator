@@ -187,6 +187,42 @@ arr_summary_data_3 <-
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/arr_summary_data_3.RData"
   )
 
+# DATA FOR THE STRATEGY PICKER
+# the strategy picker relies on a "widened" version of wicf_impacts_net
+# that also includes a summary of impacts in the dispose_all scenario
+sp_data_summaries <-
+  wicf_impacts_net %>%
+  filter(scenario == "dispose_all") %>%
+  group_by(wasteshed, impactCategory, impactUnits) %>%
+  summarise(
+    totalCategoryImpact = sum(impact),
+    maxMaterialImpact = max(impact)
+  ) %>%
+  ungroup()
+
+sp_data_1 <- 
+  wicf_impacts_net %>%
+  select(-optVariant) %>%
+  pivot_wider(
+    values_from = "impact",
+    names_from = "scenario"
+  ) %>%
+  mutate(
+    potentialSavingsAbsolute = dispose_all - optimal,
+    realizedSavingsAbsolute = dispose_all - actual,
+    unrealizedSavingsAbsolute = actual - optimal
+  )
+
+sp_data_2 <-
+  left_join(
+    sp_data_1,
+    sp_data_summaries,
+    by = c("wasteshed", "impactCategory", "impactUnits")
+  ) %>%
+  mutate(
+    potentialSavingsPct = potentialSavingsAbsolute/totalCategoryImpact,
+    totalMaterialImpactPct = dispose_all/totalCategoryImpact
+  )
 
 # DATA FOR THE FREE ENTRY PAGE
 # creating the list of materials and end-of-life dispositions
@@ -241,14 +277,26 @@ ui <-
         sidebarPanel(
           width=3,
           h3("INTRODUCTION"),
-          "This page has a youtube video or two to introduce you to 
-          the ideas behind this work, and how to use the model... 
-          like the diff between waste and materials, and the 
-          materials life cycle."
+          "This section contains some resources to help you understand
+          what this model is about."
         ),
         mainPanel(
           width=9,
-          "insert videos below"
+          tabsetPanel(
+            tabPanel(
+              title = "Video",
+              "insert youtube video here"
+            ),
+            tabPanel(
+              title = "Understanding the impacts of materials",
+              "insert essay about materials lifecycle, cbei results,
+              etc. here"
+            ),
+            tabPanel(
+              title = "Glossary and conventions",
+              "insert some verbiage here -- could i put it in an rmd?"
+            )
+          )
         )
       ) # close sidebarlayout for introduction page
     ), #close introduction page
@@ -257,33 +305,6 @@ ui <-
     # (multiple pages selected via drop-down menu)
     navbarMenu(
       title="Weights and impacts",
-      
-      # lay out contents of waste stream page
-      tabPanel(
-        title="total weight & impacts of the waste stream",
-        sidebarLayout(
-          sidebarPanel(
-            h3("TOTAL WEIGHT & IMPACTS OF THE WASTE STREAM"),
-            width=3,
-            h5("WHAT THIS CHART SHOWS"),
-            "This chart shows how the waste stream can
-            differ from the total effects of materials.",
-            h5("THINGS TO LOOK OUT FOR"),
-            "The total effects of materials are very 
-            large.  The materials in waste create some, but not all, of 
-            those impacts.  This is because many impactful 
-            materials are too long-lived to be noted in
-            solid waste statistics."
-          ),
-          mainPanel(
-            width=9,
-            "Here is the pie chart, that shows all the stuff not
-            in the waste stream.  Probably won't be many options 
-            for this -- perhaps Oregon & Metro, and only for GHGs.
-            Question: should it include the recovery slice?"
-          ) # close mainPanel for contents of waste stream page
-        ) # close sidebarlayout for contents of the waste stream page
-      ),  # close tabPanel for contents of waste stream page
       
       # lay out weights, recovery rates, & impacts page
       tabPanel(
@@ -421,18 +442,13 @@ ui <-
               )
             ) #close mainpanel of sidebarlayout for weights vs impacts display
           ) #close sidebarlayout for weights vs. impacts display
-        ) # close tabPanel for weights vs. impacts display
-      ), #close navbarmenu for "weights & impacts" section
-    
-        # user interface for the impact hotspot (heatmap) section
-        navbarMenu(
-          title="Impact hotspots",
-          
-          tabPanel(
-            title="Impact intensities",  
-          sidebarLayout(
-            sidebarPanel(
-              h3("IMPACT INTENSITIES"),
+        ),  # close tabPanel for weights vs. impacts display
+      
+      tabPanel(
+        title="Impact intensities",  
+        sidebarLayout(
+          sidebarPanel(
+            h3("IMPACT INTENSITIES"),
             width=3,
             "This chart makes it easier to evaluate impacts for 
             many different impact categories (for example, 
@@ -486,82 +502,15 @@ ui <-
             #tableOutput("hm_matrix")
           ) # end mainPanel
         ) #end sidebarlayout
-        ), #end impact intensities page
-
-        # lay out impact disproportionality page        
-        tabPanel(
-          title="impact disporportionality",
-          sidebarLayout(
-            sidebarPanel(
-              width=3,
-              h3("IMPACT DISPROPORTIONALITY"),
-              "blah blah",
-              "blah blah"
-            ),
-            mainPanel(
-              width=9,
-              "blah blah"
-            ) 
-          ) # close sidebar layout for impact disprortionality page
-        ) # end impact disproportionality page
-        
-        ), #end impact hotspots section
-      
+      ) #end impact intensities page
+      ), #close navbarmenu for "weights & impacts" section
+    
       # ui for the Ways to reduce impacts section
       navbarMenu(
-        title="Ways to reduce impacts",
+        title="Solutions",
         
         tabPanel(
-          title = "recycling and its limits",
-          sidebarLayout(
-            sidebarPanel(
-              width = 3,
-              h3("NORMALIZED IMPACTS"),
-              "This chart explores how recycling- oriented 
-               waste management scenarios affect impacts in
-               multiple impact categories."
-            ),
-            mainPanel(
-              width=9,
-              fluidRow(
-                width=12,
-                column(
-                  width=6,
-                  plotOutput(outputId="normalized_chart")
-                )
-              ),
-              fluidRow(
-                width=12,
-                column(
-                  width=6,
-                  selectInput(
-                    inputId="normalized_wasteshed_choice",
-                    label = "choose a wasteshed",
-                    choices = unique(normalized_impacts_3$wasteshed),
-                    selected = "Metro"
-                  )
-                ),
-                column(
-                  width=6,
-                  checkboxGroupInput(
-                    inputId="normalized_scenario_choice",
-                    label = "choose scenario(s)",
-                    choices = c("actual", "dispose_all", "optimal"),
-                    selected = "optimal",
-                    inline = TRUE
-                  )
-                )
-              ),
-              fluidRow(
-                dataTableOutput(outputId="normalized_results")
-              )
-            )  
-          ) # close sidebar layout for normalized view
-        ), # close tabPanel for normalized view
-        
-        tabPanel(
-          title="alternative recovery rate results 
-                 (for Oregon wastesheds)",
+          title="what if if you recycle everything? (single impact view)",
           sidebarLayout(
             sidebarPanel(
               h3("ALTERNATIVE RECOVERY RATES for OREGON WASTESHEDS"),
@@ -646,9 +595,59 @@ ui <-
             ) # close mainpanel for "recycling and its limits (ARR)"
           ) # close sidebarlayout for "recycling and its limits (ARR)"
         ), # close tabPanel for "reycling and its limits (ARR)" page
-        
+
         tabPanel(
-        title="recycling vs. reduction",
+          title = "what if you recycled everything? (normalized view)",
+          sidebarLayout(
+            sidebarPanel(
+              width = 3,
+              h3("NORMALIZED IMPACTS"),
+              "This chart explores how recycling- oriented 
+              waste management scenarios affect impacts in
+              multiple impact categories."
+            ),
+            mainPanel(
+              width=9,
+              fluidRow(
+                width=12,
+                column(
+                  width=6,
+                  plotOutput(outputId="normalized_chart")
+                )
+              ),
+              fluidRow(
+                width=12,
+                column(
+                  width=6,
+                  selectInput(
+                    inputId="normalized_wasteshed_choice",
+                    label = "choose a wasteshed",
+                    choices = unique(normalized_impacts_3$wasteshed),
+                    selected = "Metro"
+                  )
+                ),
+                column(
+                  width=6,
+                  checkboxGroupInput(
+                    inputId="normalized_scenario_choice",
+                    label = "choose scenario(s)",
+                    choices = c("actual", "dispose_all", "optimal"),
+                    selected = "optimal",
+                    inline = TRUE
+                  )
+                )
+              ),
+              fluidRow(
+                dataTableOutput(outputId="normalized_results")
+              )
+            )  
+            ) # close sidebar layout for normalized view
+        ), # close tabPanel for normalized view
+        
+        
+                
+        tabPanel(
+        title="recycling vs. reduction model",
         sidebarLayout(
         sidebarPanel(
           width=3,
@@ -662,17 +661,36 @@ ui <-
       ),  # close the page layout
 
       tabPanel(
-        title="strategy chart",
+        title="strategy picker",
         sidebarLayout(
           sidebarPanel(
             width=3,
-            h3("STRATEGY CHART"),
+            h3("STRATEGY PICKER"),
             "blah blah"
           ),
           mainPanel(
-            "put evolving strategy chart here, where there is the 
-        radial strategy chart, and you can add things to it by 
-            clicking on individual materials and/or impact categories."
+            selectInput(
+              inputId = "sp_wasteshed_choice",
+              label = "choose a wasteshed",
+              choices = unique(sp_data_2$wasteshed),
+              selected = "Lane"
+            ),
+            checkboxGroupInput(
+              inputId = "sp_category_choice",
+              label = "choose impact categories",
+              choices = unique(sp_data_2$impactCategory),
+              selected = "Air PM2.5",
+              inline = TRUE
+            ),
+            checkboxGroupInput(
+              inputId = "sp_material_choice",
+              label = "choose materials",
+              choices = unique(sp_data_2$material),
+              selected = "ScrapMetal",
+              inline = TRUE
+            ),
+            plotOutput(outputId = "sp_chart"),
+            dataTableOutput(outputId = "sp_table")
           )
         ) # close sidebar layout for strategy chart page
       ) # close tabpanel for strategy chart page
@@ -828,11 +846,23 @@ ui <-
       sidebarLayout(
         sidebarPanel(
           width=3,
-          h1("DOCUMENTATION"),
-          "blah blah"
+          h3("DOCUMENTATION"),
+          "This section provides background about the provenance of 
+          this model, and the impact factors it relies on."
         ),
         mainPanel(
-          "Links to pdf documents will go here."
+          width = 9,
+          tabsetPanel(
+            tabPanel(
+              title = "Credits",
+              "insert some text here -- from a modular file?"
+            ),
+            tabPanel(
+              title = "Formal documentation",
+              "insert pdfs here for the Waste Impact Calculator and 
+              impact factor documents"
+            )
+          ) # close tabsetPanel for the documentation page
         ) # close mainpanel for documentation page
       ) # close sidebar layout for documentation page
     ) # close tabPanel for documentation page
@@ -1343,6 +1373,33 @@ server <- function(input, output) {
     )
   })
   
+  # REACTIVE OBJECTS AND OUTPUTS FOR THE STRATEGY PICKER PAGE
+  sp_data_to_use <- reactive({
+    sp_data_2 %>%
+    filter(
+      wasteshed %in% input$sp_wasteshed_choice,
+      impactCategory %in% input$sp_category_choice,
+      material %in% input$sp_material_choice
+    )
+  })
+  
+  output$sp_chart <- renderPlot({
+    ggplot()+
+    ggtitle("Strategy chart")+
+    theme_539()+
+    geom_point(
+      data = sp_data_to_use(),
+      aes(
+        x = totalMaterialImpactPct,
+        y = potentialSavingsPct,
+        color = impactCategory,
+        fill = impactCategory,
+        shape = material
+      )
+    )
+  })
+  
+  output$sp_table <- renderDataTable(sp_data_to_use())
 
   # REACTIVE OBJECTS AND OUTPUTS FOR THE ENTER-YOUR-OWN PAGE  
   output$x1 <- 
