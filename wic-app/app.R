@@ -172,6 +172,11 @@ hm_14b <-
 arr_summary_data_1 <-
   readRDS(
     "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/arr_summary_data_1.RData"
+  ) %>%
+  mutate(
+    curr_impact_reduction_abs = dispose_all-actual,
+    curr_impact_reduction_pct = curr_impact_reduction_abs/dispose_all,
+    poss_impact_reduction_abs = dispose_all-optimal
   )
 arr_summary_data_2 <-
   readRDS(
@@ -555,44 +560,86 @@ ui <-
         ), # close tabPanel for normalized view
         
         tabPanel(
-          title="recycling and its limits (ARR)",
+          title="alternative recovery rate results 
+                 (for Oregon wastesheds)",
           sidebarLayout(
             sidebarPanel(
-              h3("RECYCLING AND ITS LIMITS"),
+              h3("ALTERNATIVE RECOVERY RATES for OREGON WASTESHEDS"),
               width=3,
-              "blah blah",
-              textOutput("arr_statement")
+              "This page shows the results for an environmental impact 
+              calculation required by Oregon law: the 'Alternative Recovery 
+              Rate' (link)  ",
+              h5(""),
+              "As the name suggests, these recovery rates offer an 
+              alternative to traditional weight-based goals 
+              for recovery (recycling and composting) of solid waste,
+              which are also present in Oregon state law.(link)",
+              h5(""),
+              "Whereas weight-based goals measures recovery as the 
+              number of tons recovered divided by the total number of 
+              tons in the waste stream, the alternative recovery rate 
+              measures recovery by the size of impact reductions linked 
+              to that recovery, divided by the total impact reductions 
+              possible if recovery were optimized to reduce impacts.",
+              h5(""),
+              "You may notice several things.  First, the alternative 
+              recovery rate may be 
+              more or less than the regular weight-based recovery rate.
+              But perhaps more important, high recovery rates do not 
+              necessarily eliminate all the impacts associated with 
+              materials.",
+              h5(""),
+              "To reduce impacts below the level associated
+              with optimal recovery, actual reductions in the use of 
+              materials are necessary.",
+              h5(""),
+              downloadButton(
+                outputId="arr_report",
+                label = "download a formatted ARR report"
+                )
             ), # close sidebarpanel for "recycling and its limits"
+            
             mainPanel(
+              
+              # summary row with Alternative Recovery Rate results
               fluidRow(
+                width=12,
+                h3(textOutput(outputId = "arr_screen_title")),
+                h4(""),
+                textOutput("arr_statement")
+              ),
+              fluidRow(
+                width=12,
                 column(
-                  width=4,
+                  width=6,
                   h3("weights for three management scenarios"),
                   plotOutput("arr_weight_chart")
                 ),
                 column(
-                  width=5,
+                  width=6,
                   h3("impacts for those same scenarios"),
                   plotOutput("arr_impact_chart")
                 )
               ), # close fluidRow
               fluidRow(
                 column(
-                  width=3,
+                  width=6,
                   selectInput(
                     inputId="arr_wasteshed_choice",
                     label="choose a wasteshed",
                     choices = unique(arr_summary_data_1$wasteshed),
-                    selected = "Metro"
+                    selected = "Metro",
+                    width = "100%"
                   )
                 ),
                 column(
-                  width=3,
+                  width=6,
                   selectInput(
                     inputId="arr_impactCategory_choice",
                     label="choose an impact category",
                     choices= unique(arr_summary_data_1$impactCategory),
-                    selected="Smog"
+                    selected="Smog",
+                    width = "100%"
                   )
                 )
               ) # close fluidRow
@@ -1181,26 +1228,57 @@ server <- function(input, output) {
       )
   })
   
+  output$arr_screen_title <- renderText({
+    paste(
+      "Alternative Recovery Rate (ARR) results for ",
+      str_to_upper(input$arr_wasteshed_choice),
+      " wasteshed, using ",
+      str_to_lower(input$arr_impactCategory_choice), 
+      " impacts.",
+      sep=""
+    )
+    })
+  
+  arr_summary_data_1_current_row <- 
+    reactive({
+      arr_summary_data_1 %>%
+      filter(
+        wasteshed==input$arr_wasteshed_choice,
+        impactCategory==input$arr_impactCategory_choice
+      )
+    })
+  
   output$arr_statement <- 
     renderText({
-      paste("For the ", 
-            input$arr_wasteshed_choice, 
-            " wasteshed, the weight-based recovery rate is ",
-            round(filter(arr_summary_data_1, 
-                    wasteshed==input$arr_wasteshed_choice,
-                    impactCategory==input$arr_impactCategory_choice)
-             $wb_rr, 2),
-            ".  That recovery reduces life cycle ",
-            (filter(arr_summary_data_1, 
-                    wasteshed==input$arr_wasteshed_choice,
-                    impactCategory==input$arr_impactCategory_choice)
-            )$impactCategory,
+      paste("The weight-based recovery rate is ",
+            100*round(arr_summary_data_1_current_row()$wb_rr, 2),
+            "%.  That recovery activity reduces life cycle ",
+            str_to_lower(arr_summary_data_1_current_row()$impactCategory),
             " impacts by ",
-            round((filter(arr_summary_data_1, 
-                    wasteshed==input$arr_wasteshed_choice,
-                    impactCategory==input$arr_impactCategory_choice)
-            )$curr_impact_reduction, 2),
-            ".",
+            round(arr_summary_data_1_current_row()$curr_impact_reduction_abs, 2),
+            " ",
+            arr_summary_data_1_current_row()$impactUnits,
+            ", or ",
+            100*round(arr_summary_data_1_current_row()$curr_impact_reduction_pct, 2),
+            "%, compared to a scenario where all waste is disposed.
+            If all waste was recovered optimally, it would reduce 
+            life cycle ",
+            str_to_lower(arr_summary_data_1_current_row()$impactCategory),
+            " impacts by ",
+            round(arr_summary_data_1_current_row()$poss_impact_reduction_abs, 2),
+            " ",
+            arr_summary_data_1_current_row()$impactUnits,
+            ".  ",
+            "Therefore the recovery activity has reduced impacts by ",
+            round(arr_summary_data_1_current_row()$curr_impact_reduction_abs, 2),
+            " out of a possible ",
+            round(arr_summary_data_1_current_row()$poss_impact_reduction_abs, 2),
+            ", and the alternative recovery rate is ",
+            100*round(arr_summary_data_1_current_row()$arr,2),
+            "%.",
+            "  Further reductions in impacts are not available through
+            recovery, but are available through reduction in waste 
+            generation.",
             sep=""
             )
     })
@@ -1218,7 +1296,17 @@ server <- function(input, output) {
         stat="identity",
         position="stack"
       )+
-      scale_alpha_manual(values=c(0.25,0.75))+
+      # geom_text(
+      #   data=arr_weight_data(),
+      #   aes(x=scenario, y=tons/2, label=umbDisp),
+      #   color="white",
+      #   size=7,
+      #   hjust=0,
+      #   fontfamily="bold"
+      # )+
+      scale_alpha_manual(values=c(1,0.5))+
+      scale_color_manual(values=myPal2)+
+      scale_fill_manual(values=myPal2)+
       coord_flip()+
       theme(legend.position="none")
     })
@@ -1226,6 +1314,11 @@ server <- function(input, output) {
   output$arr_impact_chart <- renderPlot({
     ggplot()+
     theme_539()+
+    geom_hline(
+      data=arr_impact_data(),
+      aes(yintercept=impact),
+      linetype="dotted"
+    )+
     geom_bar(
       data=arr_impact_data(),
       aes(
@@ -1233,8 +1326,19 @@ server <- function(input, output) {
       stat="identity",
       position="stack"
     )+
+    geom_text(
+      data=arr_impact_data(),
+      aes(x=scenario, y=impact/2, label=scenario),
+      color="white",
+      size=7,
+      hjust=0.5,
+      fontfamily="bold"
+      )+
     coord_flip()+
+    scale_fill_manual(values=myPal2)+
+    scale_color_manual(values=myPal2)+
     theme(
+      axis.text.y=element_blank(),
       legend.position = "none"
     )
   })
@@ -1293,7 +1397,8 @@ server <- function(input, output) {
   
   #so, mat_disp_combos_2 has the end-of-life information I need.
   #but production information isn't included.
-  #so all I really need to do is double it and change the disposition to production.
+  #so all I really need to do is double it and change the 
+  #disposition to production.
   fe_mat_disp_combos_3 <-
     reactive({
       bind_rows(

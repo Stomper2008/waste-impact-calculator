@@ -780,6 +780,8 @@ print(testSet3)
 testSet2 should have no missing impact factors
 testSet3 should have the same number of tons in each scenario and variant.
 
+... note 2020/2/19... it doesn't!  dispose_all is low.  gotta work on that.
+
 ```{r}
 # cleaning up the test objects
 rm(testSet1, testSet2, testSet3)
@@ -893,34 +895,34 @@ not sure if that was the most efficient way to do it, but there's the data i nee
 # for making a model of impact x recovery rate i can combine the weight and
 # impact files.
 
-# arr_model_maker <-
-#   full_join(
-#     impacts_arr_sums_for_chart,
-#     weight_stuff_for_chart_3 %>% select(-tons, -recoveredTons),
-#     by=c("wasteshed", "optVariant", "scenario")
-#   ) %>%
-#   mutate(
-#     scenario=factor(scenario, levels=c("dispose_all", "actual", "optimal"))
-#   ) %>%
-#   group_by(wasteshed, impactCategory, impactUnits)
-# arr_model <-
-#   do(
-#     arr_model_maker,
-#     tidy(
-#       lm(
-#         impact~rr,
-#         data=.,
-#         singular.ok = TRUE
-#       )
-#     )
-#   )
-# arr_model_coeff <-
-#   pivot_wider(
-#     arr_model %>% select(wasteshed, impactCategory, impactUnits, term, estimate),
-#     names_from="term",
-#     values_from = "estimate"
-#   ) %>%
-#   rename(rr_intercept=`(Intercept)`, rr_slope=rr)
+arr_model_maker <-
+  full_join(
+    impacts_arr_sums_for_chart,
+    weight_stuff_for_chart_3 %>% select(-tons, -recoveredTons),
+    by=c("wasteshed", "optVariant", "scenario")
+  ) %>%
+  mutate(
+    scenario=factor(scenario, levels=c("dispose_all", "actual", "optimal"))
+  ) %>%
+  group_by(wasteshed, impactCategory, impactUnits)
+arr_model <-
+  do(
+    arr_model_maker,
+    tidy(
+      lm(
+        impact~rr,
+        data=.,
+        singular.ok = TRUE
+      )
+    )
+  )
+arr_model_coeff <-
+  pivot_wider(
+    arr_model %>% select(wasteshed, impactCategory, impactUnits, term, estimate),
+    names_from="term",
+    values_from = "estimate"
+  ) %>%
+  rename(rr_intercept=`(Intercept)`, rr_slope=rr)
 ```
 
 now making a plot
@@ -967,7 +969,11 @@ arr_summary_data_1 <-
       rename(wb_rr=rr),
     by="wasteshed"
   ) %>%
-  mutate(curr_impact_reduction=1-(actual/dispose_all))
+  mutate(
+    curr_impact_reduction_abs = dispose_all-actual,
+    curr_impact_reduction_pct = curr_impact_reduction_abs/dispose_all,
+    poss_impact_redcution_abs = dispose_all-optimal
+  )
 saveRDS(
   arr_summary_data_1,
   "intermediate_output/arr_summary_data_1.RData"
