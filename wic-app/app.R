@@ -33,6 +33,7 @@ library(heatmaply)
 library(scales)
 library(openxlsx)
 library(knitr)
+library(ggforce)
 
 # importing some graphic conventions (to be expanded later)
 source(file="../oregon_deq/resources/theme_539.R")
@@ -666,30 +667,34 @@ ui <-
           sidebarPanel(
             width=3,
             h3("STRATEGY PICKER"),
-            "blah blah"
+            "This page does blah."
           ),
           mainPanel(
-            selectInput(
-              inputId = "sp_wasteshed_choice",
-              label = "choose a wasteshed",
-              choices = unique(sp_data_2$wasteshed),
-              selected = "Lane"
-            ),
-            checkboxGroupInput(
-              inputId = "sp_category_choice",
-              label = "choose impact categories",
-              choices = unique(sp_data_2$impactCategory),
-              selected = "Air PM2.5",
-              inline = TRUE
-            ),
-            checkboxGroupInput(
-              inputId = "sp_material_choice",
-              label = "choose materials",
-              choices = unique(sp_data_2$material),
-              selected = "ScrapMetal",
-              inline = TRUE
-            ),
+            width=9,
             plotOutput(outputId = "sp_chart"),
+            wellPanel(
+              h3("Options"),
+              selectInput(
+                inputId = "sp_wasteshed_choice",
+                label = "choose a wasteshed",
+                choices = unique(sp_data_2$wasteshed),
+                selected = "Lane"
+              ),
+              checkboxGroupInput(
+                inputId = "sp_category_choice",
+                label = "choose impact categories",
+                choices = unique(sp_data_2$impactCategory),
+                selected = "Air PM2.5",
+                inline = TRUE
+              ),
+              checkboxGroupInput(
+                inputId = "sp_material_choice",
+                label = "choose materials",
+                choices = unique(sp_data_2$material),
+                selected = "ScrapMetal",
+                inline = TRUE
+              )
+            ),
             dataTableOutput(outputId = "sp_table")
           )
         ) # close sidebar layout for strategy chart page
@@ -1383,20 +1388,79 @@ server <- function(input, output) {
     )
   })
   
-  output$sp_chart <- renderPlot({
+  sp_chart_object <- reactive({
     ggplot()+
-    ggtitle("Strategy chart")+
-    theme_539()+
-    geom_point(
-      data = sp_data_to_use(),
-      aes(
-        x = totalMaterialImpactPct,
-        y = potentialSavingsPct,
-        color = impactCategory,
-        fill = impactCategory,
-        shape = material
+      ggtitle("Strategy chart")+
+      theme_539()+
+      geom_abline(aes(intercept=0, slope=1))+
+      geom_abline(aes(intercept=0, slope=0.5))+
+      geom_abline(aes(intercept=0, slope=0))+
+      geom_circle(
+        aes(x0=0, y0=0, r=0.1),
+        fill="white"
+      )+
+      geom_text(
+        data =
+          data.frame(
+            xxx = c(0.15, 0.3, 0.3, 0.2, 0.05),
+            yyy = c(0.25, 0.21, 0.08, -0.03, 0),
+            thing = 
+              c("RECOVER", "RECOVER\nOR REDUCE", "REDUCE", "DISPOSE",
+                "LOW\nPRI-\nORITY")
+          ),
+        aes(x=xxx, y=yyy, label=thing),
+        hjust=0.5,
+        vjust=0.5,
+        size=5,
+        font.family="italic",
+        color = "gray50"
+      )+
+      geom_point(
+        data = sp_data_to_use(),
+        aes(
+          x = totalMaterialImpactPct,
+          y = potentialSavingsPct,
+          color = impactCategory,
+          fill = impactCategory,
+          shape = material
+        ),
+        size = 8
+      )+
+      geom_text(
+        data = sp_data_to_use(),
+        aes(
+          x = totalMaterialImpactPct,
+          y = potentialSavingsPct,
+          label = material,
+          color = impactCategory
+        ),
+        size = 6,
+        hjust = 1.15,
+        vjust = 0.3
+      )+
+      coord_fixed(ratio=1)+
+      expand_limits(x=0.4, y=0.3)+
+      scale_color_viridis(begin = 0.32, end = 1, discrete = TRUE)+
+      scale_fill_viridis(begin = 0.32, end = 1, discrete = TRUE)+
+      scale_x_continuous(
+        limits = c(0,NA),
+        name = "Total life cycle impact assuming no recovery"
+      )+
+      scale_y_continuous(
+#        limits = c(-0.05,NA),
+#        limits = c(NA,0.5),
+ #       limits = c(0,NA),
+        name = "Maximum possible benefit from recovery")+
+      theme(
+        axis.ticks = element_line(),
+        axis.title = element_text(),
+        legend.position = "none",
+        panel.grid = element_blank()
       )
-    )
+  })
+  
+  output$sp_chart <- renderPlot({
+    sp_chart_object()
   })
   
   output$sp_table <- renderDataTable(sp_data_to_use())
