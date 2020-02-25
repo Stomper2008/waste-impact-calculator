@@ -107,7 +107,7 @@ impactFactorsSourceFilespec <-
 # getting the impact factors themselves, without column names
 impactFactorsRaw <- read_xlsx(
    path=impactFactorsSourceFilespec, 
-   range="g10:em98",
+   range="g10:fk98",
    col_names = FALSE,
    trim_ws = TRUE
    )
@@ -116,7 +116,7 @@ impactFactorsRaw <- read_xlsx(
 impactFactorsColumnNames <- as.character(
    read_xlsx(
       path=impactFactorsSourceFilespec,
-      range="g9:em9",
+      range="g9:fk9",
       col_names=FALSE,
       col_types=c("text")
       )
@@ -168,6 +168,9 @@ impactFactorsRawFiltered <- filter(
    )
 # str(impactFactorsRawFiltered)
 ```
+
+blah 
+
 ```{r}
 # now let's flip the columns so they are rows.
 # we want to create a "tidy" file -- where each
@@ -184,6 +187,9 @@ impactFactorsRawFlipped <- gather(
 # printing out what I've got
 # str(impactFactorsRawFlipped)
 ```
+
+blah
+
 ```{r}
 # now I've got these really long fields that need to be parsed into 
 # separate fields.
@@ -495,12 +501,7 @@ impactFactorsIMFOapp <- arrange(
   )
 ```
 
-however, peter canepa says not to use a few of those, because he's still working on them.
-
-```{r}
-impactFactorsIMFOapp <-
-  filter(impactFactorsIMFOapp, material != "Wood")
-```
+let's rename it.
 
 ```{r}
 # let's rename it
@@ -603,7 +604,7 @@ rm(junk1, junk2, junk3, junk4)
 
 ```
 
-
+blah
 
 ```{r}
 # importing the crosswalk equivalencies for recovery and disposal...
@@ -643,12 +644,27 @@ recovery_tons_temp_1 <-
   # removing some nonsensical combustion of electronics being
   # counted as recovery
   filter(!(material=="Electronics" & disposition=="combustion"))
+
+recovery_tons_temp_1_anti <-
+  anti_join(
+    recovery_tons_by_mrs_material2,
+    mrs_deq_xwalk,
+    by = c("swims_material", "swims_disp")
+  )
+
+recovery_tons_temp_1_anti_unique <-
+  recovery_tons_temp_1_anti %>%
+  select(swims_material, swims_disp) %>%
+  unique()
+
 rm(junk2, recovery_tons_by_mrs_material, recovery_tons_by_mrs_material2)
 ```  
 
 Ok, at this point anything in recovery_tons_temp_1 is a recovered material that I have an impact factor for.  That doesn't mean it's the whole waste stream.
 
-I'm going to have to figure out which portion of the waste stream later.
+meanwhile, recovery_tons_temp_1_anti is a recovered material I don't have an impact factor for.
+
+for now I'm going to ignore the "anti's".  (FOR THE FUTURE: probably what i need to do here is assign the "antis" to an "other" material category, and then add, to the impact factors, weighted average impact factors representing other.)
 
 Now I need to do a similar process with disposal entries.  Those need to be spread across landfilling and combustion. 
 
@@ -757,7 +773,22 @@ disposal_by_wasteshed_and_type_skinny <-
     landfill_ratio:combustion_ratio
     ) %>%
   arrange(Year, WS_Collection, disposal_type)
+
+# saving totals for use in the "Oregon total" wasteshed
+disposal_by_type_oregon_total <-
+  disposal_by_wasteshed_and_type %>%
+  group_by(disposal_type) %>%
+  summarise(Tons=sum(Tons, na.rm=T)) %>%
+  mutate(
+    year=year_of_interest,
+    wasteshed="Oregon total",
+    proportion_of_tons=Tons/sum(Tons,na.rm=T)
+  ) %>%
+  rename(disposition=disposal_type) %>%
+  select(-Tons)
 ```
+
+Hmm, I'm actually seeing a few tons here that have no wasteshed! (At least in disposal_by_wasteshed_and_type).
 
 Ok, that object disposal_by_wasteshed_and_type_skinny has the ratios I need.
 
@@ -775,7 +806,7 @@ First I'll fix names.
 ```{r}
 # fixing wasteshed codes and field names so the match 
 # will go smoother
-disposal_types_temp1 <- 
+disposal_types_temp0 <- 
   left_join(
     rename(
       disposal_by_wasteshed_and_type_skinny,
@@ -799,6 +830,9 @@ disposal_types_temp1 <-
     )
   ) %>%
   select(year, wasteshed, disposition, proportion_of_tons)
+
+disposal_types_temp1 <-
+  bind_rows(disposal_types_temp0, disposal_by_type_oregon_total)
 ```
 
 Now I'll apply all the proportions to the existing disposed materials.  This will double the number of lines in the disposal file, but shouldn't change the total number of tons.
@@ -829,6 +863,19 @@ disposal_tons_by_mrs_material_and_disposition <-
   ) %>%
   select(-swims_material, -swims_disp) %>%
   filter(!is.na(material) & !is.na(disposition))
+
+disposal_tons_by_mrs_material_and_disposition_anti <-
+  anti_join(
+    disposal_tons_by_mrs_material_and_disposition_all,
+    mrs_deq_xwalk,
+    by=c("swims_material", "swims_disp")
+  ) 
+
+disposal_tons_by_mrs_material_and_disposition_anti_unique <-
+  disposal_tons_by_mrs_material_and_disposition_anti %>%
+  select(swims_material, swims_disp) %>%
+  unique()
+
 ```
 
 Ok, now I've got disposal tons with detailed dispositions by wasteshed, in object disposal_tons_by_mrs_material_and_disposition. 
@@ -965,3 +1012,8 @@ however, we don't know if all the masses are included.  That's a place I will ne
 # cleaning the space
 rm(list=ls())
 ```
+
+Note 2/24/20.. now that I'm getting close to being done, I really need to find a way to deal with those miscellaneous materials.
+
+I guess just group them all and create generic impact factors for "other" materials.  The specific impact factors can remain in the impact factor database, for use in special analyses or the enter-your-own analysis.  But the generic impact factors for "other" materials will allow me to stick with the general method of calculating impacts on-the-fly.
+

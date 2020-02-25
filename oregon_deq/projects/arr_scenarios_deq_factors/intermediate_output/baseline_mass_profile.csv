@@ -7,6 +7,8 @@
 2018,"Baker","Carpeting","combustion",0,"disposal",180
 2018,"Baker","Carpeting","landfilling",306.891914994687,"disposal",180
 2018,"Baker","Carpeting","recycling",0,"recovery",180
+2018,"Baker","Nonrecyclables","combustion",0,"disposal",180
+2018,"Baker","Nonrecyclables","landfilling",2388.13735855728,"disposal",180
 2018,"Baker","Electronics","landfilling",140.69250586905,"disposal",180
 2018,"Baker","Electronics","recycling",40.513,"recovery",180
 2018,"Baker","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -31,6 +33,9 @@
 2018,"Baker","ScrapMetal","recycling",199.536,"recovery",180
 2018,"Baker","TinnedCan","landfilling",81.9653684845068,"disposal",180
 2018,"Baker","TinnedCan","recycling",1.7,"recovery",180
+2018,"Baker","Wood","combustion",0,"disposal",180
+2018,"Baker","Wood","composting",0,"recovery",180
+2018,"Baker","Wood","landfilling",2096.45036757974,"disposal",180
 2018,"Baker","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Baker","YardDebris","combustion",0,"disposal",180
 2018,"Baker","YardDebris","composting",874.88,"recovery",180
@@ -43,6 +48,8 @@
 2018,"Benton","Carpeting","combustion",0.00594581721809581,"disposal",180
 2018,"Benton","Carpeting","landfilling",1467.34844997697,"disposal",180
 2018,"Benton","Carpeting","recycling",0,"recovery",180
+2018,"Benton","Nonrecyclables","combustion",0.0462684988815478,"disposal",180
+2018,"Benton","Nonrecyclables","landfilling",11418.4489072376,"disposal",180
 2018,"Benton","Electronics","landfilling",672.695891691707,"disposal",180
 2018,"Benton","Electronics","recycling",180.401,"recovery",180
 2018,"Benton","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -67,6 +74,9 @@
 2018,"Benton","ScrapMetal","recycling",3775.609,"recovery",180
 2018,"Benton","TinnedCan","landfilling",391.902655368469,"disposal",180
 2018,"Benton","TinnedCan","recycling",180.868,"recovery",180
+2018,"Benton","Wood","combustion",0.0406172664817667,"disposal",180
+2018,"Benton","Wood","composting",450.351,"recovery",180
+2018,"Benton","Wood","landfilling",10023.8000645115,"disposal",180
 2018,"Benton","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Benton","YardDebris","combustion",0,"disposal",180
 2018,"Benton","YardDebris","composting",12461.887,"recovery",180
@@ -79,6 +89,8 @@
 2018,"Clatsop","Carpeting","combustion",0.00205816749849575,"disposal",180
 2018,"Clatsop","Carpeting","landfilling",782.090179894166,"disposal",180
 2018,"Clatsop","Carpeting","recycling",0,"recovery",180
+2018,"Clatsop","Nonrecyclables","combustion",0.0160160188430222,"disposal",180
+2018,"Clatsop","Nonrecyclables","landfilling",6085.98234462572,"disposal",180
 2018,"Clatsop","Electronics","landfilling",358.543910245374,"disposal",180
 2018,"Clatsop","Electronics","recycling",115.202,"recovery",180
 2018,"Clatsop","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -103,6 +115,10 @@
 2018,"Clatsop","ScrapMetal","recycling",5555.646,"recovery",180
 2018,"Clatsop","TinnedCan","landfilling",208.882367540537,"disposal",180
 2018,"Clatsop","TinnedCan","recycling",62.297,"recovery",180
+2018,"Clatsop","Wood","combustion",0.0140598230124009,"disposal",180
+2018,"Clatsop","Wood","combustion",5066.949,"recovery",180
+2018,"Clatsop","Wood","composting",0,"recovery",180
+2018,"Clatsop","Wood","landfilling",5342.64073117734,"disposal",180
 2018,"Clatsop","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Clatsop","YardDebris","combustion",3910.16,"recovery",180
 2018,"Clatsop","YardDebris","composting",588.856,"recovery",180
@@ -115,6 +131,8 @@
 2018,"Columbia","Carpeting","combustion",0.00274422333144397,"disposal",180
 2018,"Columbia","Carpeting","landfilling",739.463449962732,"disposal",180
 2018,"Columbia","Carpeting","recycling",0,"recovery",180
+2018,"Columbia","Nonrecyclables","combustion",0.0213546917916013,"disposal",180
+2018,"Columbia","Nonrecyclables","landfilling",5754.27440039997,"disposal",180
 2018,"Columbia","Electronics","landfilling",339.001976561131,"disposal",180
 2018,"Columbia","Electronics","recycling",116.208,"recovery",180
 2018,"Columbia","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -139,6 +157,9 @@
 2018,"Columbia","ScrapMetal","recycling",1187.662,"recovery",180
 2018,"Columbia","TinnedCan","landfilling",197.497526639205,"disposal",180
 2018,"Columbia","TinnedCan","recycling",2.985,"recovery",180
+2018,"Columbia","Wood","combustion",0.0187464306839957,"disposal",180
+2018,"Columbia","Wood","composting",0,"recovery",180
+2018,"Columbia","Wood","landfilling",5051.44758053659,"disposal",180
 2018,"Columbia","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Columbia","YardDebris","combustion",0,"disposal",180
 2018,"Columbia","YardDebris","composting",1081.637,"recovery",180
@@ -151,6 +172,8 @@
 2018,"Coos","Carpeting","combustion",0.000228685277652682,"disposal",180
 2018,"Coos","Carpeting","landfilling",1170.29940088481,"disposal",180
 2018,"Coos","Carpeting","recycling",0,"recovery",180
+2018,"Coos","Nonrecyclables","combustion",0.00177955764955186,"disposal",180
+2018,"Coos","Nonrecyclables","landfilling",9106.90566741914,"disposal",180
 2018,"Coos","Electronics","landfilling",536.515780581521,"disposal",180
 2018,"Coos","Electronics","recycling",177.568,"recovery",180
 2018,"Coos","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -175,6 +198,9 @@
 2018,"Coos","ScrapMetal","recycling",5281.404,"recovery",180
 2018,"Coos","TinnedCan","landfilling",312.566141184859,"disposal",180
 2018,"Coos","TinnedCan","recycling",37.283,"recovery",180
+2018,"Coos","Wood","combustion",0.00156220255722064,"disposal",180
+2018,"Coos","Wood","composting",0,"recovery",180
+2018,"Coos","Wood","landfilling",7994.5886134074,"disposal",180
 2018,"Coos","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Coos","YardDebris","combustion",0,"disposal",180
 2018,"Coos","YardDebris","composting",46.909,"recovery",180
@@ -187,6 +213,8 @@
 2018,"Crook","Carpeting","combustion",0,"disposal",180
 2018,"Crook","Carpeting","landfilling",524.814966158087,"disposal",180
 2018,"Crook","Carpeting","recycling",0,"recovery",180
+2018,"Crook","Nonrecyclables","combustion",0,"disposal",180
+2018,"Crook","Nonrecyclables","landfilling",4083.9467114466,"disposal",180
 2018,"Crook","Electronics","landfilling",240.597842753987,"disposal",180
 2018,"Crook","Electronics","recycling",112.572,"recovery",180
 2018,"Crook","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -211,6 +239,10 @@
 2018,"Crook","ScrapMetal","recycling",2542.76,"recovery",180
 2018,"Crook","TinnedCan","landfilling",140.168736892519,"disposal",180
 2018,"Crook","TinnedCan","recycling",8.717,"recovery",180
+2018,"Crook","Wood","combustion",0,"disposal",180
+2018,"Crook","Wood","combustion",3.44,"recovery",180
+2018,"Crook","Wood","composting",426.27,"recovery",180
+2018,"Crook","Wood","landfilling",3585.13364137507,"disposal",180
 2018,"Crook","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Crook","YardDebris","combustion",0,"disposal",180
 2018,"Crook","YardDebris","composting",351.91,"recovery",180
@@ -223,6 +255,8 @@
 2018,"Curry","Carpeting","combustion",0,"disposal",180
 2018,"Curry","Carpeting","landfilling",460.417100506462,"disposal",180
 2018,"Curry","Carpeting","recycling",0,"recovery",180
+2018,"Curry","Nonrecyclables","combustion",0,"disposal",180
+2018,"Curry","Nonrecyclables","landfilling",3582.82256558352,"disposal",180
 2018,"Curry","Electronics","landfilling",211.07508034657,"disposal",180
 2018,"Curry","Electronics","recycling",81.087,"recovery",180
 2018,"Curry","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -247,6 +281,9 @@
 2018,"Curry","ScrapMetal","recycling",2650.688,"recovery",180
 2018,"Curry","TinnedCan","landfilling",122.969213119328,"disposal",180
 2018,"Curry","TinnedCan","recycling",18.961,"recovery",180
+2018,"Curry","Wood","combustion",0,"disposal",180
+2018,"Curry","Wood","composting",0,"recovery",180
+2018,"Curry","Wood","landfilling",3145.21677644548,"disposal",180
 2018,"Curry","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Curry","YardDebris","combustion",0,"disposal",180
 2018,"Curry","YardDebris","composting",17.006,"recovery",180
@@ -259,6 +296,8 @@
 2018,"Deschutes","Carpeting","combustion",0.0011434263879871,"disposal",180
 2018,"Deschutes","Carpeting","landfilling",4116.13290796236,"disposal",180
 2018,"Deschutes","Carpeting","recycling",0,"recovery",180
+2018,"Deschutes","Nonrecyclables","combustion",0.00889778824560916,"disposal",180
+2018,"Deschutes","Nonrecyclables","landfilling",32030.4650921225,"disposal",180
 2018,"Deschutes","Electronics","landfilling",1887.01306556515,"disposal",180
 2018,"Deschutes","Electronics","recycling",482.932,"recovery",180
 2018,"Deschutes","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -284,6 +323,10 @@
 2018,"Deschutes","ScrapMetal","recycling",11844.863,"recovery",180
 2018,"Deschutes","TinnedCan","landfilling",1099.34584147706,"disposal",180
 2018,"Deschutes","TinnedCan","recycling",321.97,"recovery",180
+2018,"Deschutes","Wood","combustion",0.00781101278421569,"disposal",180
+2018,"Deschutes","Wood","combustion",635.969,"recovery",180
+2018,"Deschutes","Wood","composting",0,"recovery",180
+2018,"Deschutes","Wood","landfilling",28118.2655074317,"disposal",180
 2018,"Deschutes","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Deschutes","YardDebris","combustion",8490.17,"recovery",180
 2018,"Deschutes","YardDebris","composting",18757.088,"recovery",180
@@ -296,6 +339,8 @@
 2018,"Douglas","Carpeting","combustion",0.000228685277513293,"disposal",180
 2018,"Douglas","Carpeting","landfilling",1937.77704890968,"disposal",180
 2018,"Douglas","Carpeting","recycling",0,"recovery",180
+2018,"Douglas","Nonrecyclables","combustion",0.00177955764846718,"disposal",180
+2018,"Douglas","Nonrecyclables","landfilling",15079.1778373705,"disposal",180
 2018,"Douglas","Electronics","landfilling",888.360675227808,"disposal",180
 2018,"Douglas","Electronics","recycling",194.07,"recovery",180
 2018,"Douglas","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -320,6 +365,10 @@
 2018,"Douglas","ScrapMetal","recycling",7529.532,"recovery",180
 2018,"Douglas","TinnedCan","landfilling",517.545761534486,"disposal",180
 2018,"Douglas","TinnedCan","recycling",82.217,"recovery",180
+2018,"Douglas","Wood","combustion",0.00156220255626844,"disposal",180
+2018,"Douglas","Wood","combustion",5666.153,"recovery",180
+2018,"Douglas","Wood","composting",0,"recovery",180
+2018,"Douglas","Wood","landfilling",13237.4077255982,"disposal",180
 2018,"Douglas","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Douglas","YardDebris","combustion",2983.705,"recovery",180
 2018,"Douglas","YardDebris","composting",1703,"recovery",180
@@ -332,6 +381,8 @@
 2018,"Gilliam","Carpeting","combustion",0,"disposal",180
 2018,"Gilliam","Carpeting","landfilling",90.2367178789356,"disposal",180
 2018,"Gilliam","Carpeting","recycling",0,"recovery",180
+2018,"Gilliam","Nonrecyclables","combustion",0,"disposal",180
+2018,"Gilliam","Nonrecyclables","landfilling",702.194051231394,"disposal",180
 2018,"Gilliam","Electronics","landfilling",41.3684080273204,"disposal",180
 2018,"Gilliam","Electronics","recycling",5.222,"recovery",180
 2018,"Gilliam","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -356,6 +407,9 @@
 2018,"Gilliam","ScrapMetal","recycling",90.886,"recovery",180
 2018,"Gilliam","TinnedCan","landfilling",24.100621327569,"disposal",180
 2018,"Gilliam","TinnedCan","recycling",0.7,"recovery",180
+2018,"Gilliam","Wood","combustion",0,"disposal",180
+2018,"Gilliam","Wood","composting",0,"recovery",180
+2018,"Gilliam","Wood","landfilling",616.42810098063,"disposal",180
 2018,"Gilliam","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Gilliam","YardDebris","combustion",0,"disposal",180
 2018,"Gilliam","YardDebris","composting",0,"recovery",180
@@ -368,6 +422,8 @@
 2018,"Grant","Carpeting","combustion",0,"disposal",180
 2018,"Grant","Carpeting","landfilling",97.3286828399286,"disposal",180
 2018,"Grant","Carpeting","recycling",0,"recovery",180
+2018,"Grant","Nonrecyclables","combustion",0,"disposal",180
+2018,"Grant","Nonrecyclables","landfilling",757.381515095406,"disposal",180
 2018,"Grant","Electronics","landfilling",44.6196710067146,"disposal",180
 2018,"Grant","Electronics","recycling",3.471,"recovery",180
 2018,"Grant","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -392,6 +448,10 @@
 2018,"Grant","ScrapMetal","recycling",10.074,"recovery",180
 2018,"Grant","TinnedCan","landfilling",25.9947589470532,"disposal",180
 2018,"Grant","TinnedCan","recycling",1.7,"recovery",180
+2018,"Grant","Wood","combustion",0,"disposal",180
+2018,"Grant","Wood","combustion",10,"recovery",180
+2018,"Grant","Wood","composting",0,"recovery",180
+2018,"Grant","Wood","landfilling",664.874970457768,"disposal",180
 2018,"Grant","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Grant","YardDebris","combustion",0,"disposal",180
 2018,"Grant","YardDebris","composting",0,"recovery",180
@@ -404,6 +464,8 @@
 2018,"Harney","Carpeting","combustion",0,"disposal",180
 2018,"Harney","Carpeting","landfilling",104.775933248231,"disposal",180
 2018,"Harney","Carpeting","recycling",0,"recovery",180
+2018,"Harney","Nonrecyclables","combustion",0,"disposal",180
+2018,"Harney","Nonrecyclables","landfilling",815.333699723354,"disposal",180
 2018,"Harney","Electronics","landfilling",48.0338121768931,"disposal",180
 2018,"Harney","Electronics","recycling",19.273,"recovery",180
 2018,"Harney","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -428,6 +490,9 @@
 2018,"Harney","ScrapMetal","recycling",263.508,"recovery",180
 2018,"Harney","TinnedCan","landfilling",27.9837869862032,"disposal",180
 2018,"Harney","TinnedCan","recycling",3.872,"recovery",180
+2018,"Harney","Wood","combustion",0,"disposal",180
+2018,"Harney","Wood","composting",0,"recovery",180
+2018,"Harney","Wood","landfilling",715.748877827446,"disposal",180
 2018,"Harney","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Harney","YardDebris","combustion",0,"disposal",180
 2018,"Harney","YardDebris","composting",0,"recovery",180
@@ -440,6 +505,8 @@
 2018,"Hood River","Carpeting","combustion",0.00228685277616685,"disposal",180
 2018,"Hood River","Carpeting","landfilling",526.058076458696,"disposal",180
 2018,"Hood River","Carpeting","recycling",0,"recovery",180
+2018,"Hood River","Nonrecyclables","combustion",0.0177955764927174,"disposal",180
+2018,"Hood River","Nonrecyclables","landfilling",4093.62020887238,"disposal",180
 2018,"Hood River","Electronics","landfilling",241.167738195082,"disposal",180
 2018,"Hood River","Electronics","recycling",55.657,"recovery",180
 2018,"Hood River","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -464,6 +531,9 @@
 2018,"Hood River","ScrapMetal","recycling",617.206,"recovery",180
 2018,"Hood River","TinnedCan","landfilling",140.500749529144,"disposal",180
 2018,"Hood River","TinnedCan","recycling",3.4,"recovery",180
+2018,"Hood River","Wood","combustion",0.0156220255697474,"disposal",180
+2018,"Hood River","Wood","composting",0,"recovery",180
+2018,"Hood River","Wood","landfilling",3593.62561825461,"disposal",180
 2018,"Hood River","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Hood River","YardDebris","combustion",0,"disposal",180
 2018,"Hood River","YardDebris","composting",883.976,"recovery",180
@@ -476,6 +546,8 @@
 2018,"Jackson","Carpeting","combustion",0,"disposal",180
 2018,"Jackson","Carpeting","landfilling",4463.75753568219,"disposal",180
 2018,"Jackson","Carpeting","recycling",0,"recovery",180
+2018,"Jackson","Nonrecyclables","combustion",0,"disposal",180
+2018,"Jackson","Nonrecyclables","landfilling",34735.5717425426,"disposal",180
 2018,"Jackson","Electronics","landfilling",2046.37920584468,"disposal",180
 2018,"Jackson","Electronics","recycling",702.642,"recovery",180
 2018,"Jackson","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -501,6 +573,10 @@
 2018,"Jackson","ScrapMetal","recycling",9529.156,"recovery",180
 2018,"Jackson","TinnedCan","landfilling",1192.19019257649,"disposal",180
 2018,"Jackson","TinnedCan","recycling",756.863,"recovery",180
+2018,"Jackson","Wood","combustion",0,"disposal",180
+2018,"Jackson","Wood","combustion",18002.543,"recovery",180
+2018,"Jackson","Wood","composting",0,"recovery",180
+2018,"Jackson","Wood","landfilling",30492.9705516347,"disposal",180
 2018,"Jackson","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Jackson","YardDebris","combustion",7596.193,"recovery",180
 2018,"Jackson","YardDebris","composting",24961.418,"recovery",180
@@ -513,6 +589,8 @@
 2018,"Jefferson","Carpeting","combustion",0.000457370555243315,"disposal",180
 2018,"Jefferson","Carpeting","landfilling",366.729407445617,"disposal",180
 2018,"Jefferson","Carpeting","recycling",0,"recovery",180
+2018,"Jefferson","Nonrecyclables","combustion",0.00355911529862088,"disposal",180
+2018,"Jefferson","Nonrecyclables","landfilling",2853.77409964552,"disposal",180
 2018,"Jefferson","Electronics","landfilling",168.124596277777,"disposal",180
 2018,"Jefferson","Electronics","recycling",52.086,"recovery",180
 2018,"Jefferson","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -537,6 +615,10 @@
 2018,"Jefferson","ScrapMetal","recycling",2603.036,"recovery",180
 2018,"Jefferson","TinnedCan","landfilling",97.9468977405455,"disposal",180
 2018,"Jefferson","TinnedCan","recycling",1.248,"recovery",180
+2018,"Jefferson","Wood","combustion",0.00312440511401741,"disposal",180
+2018,"Jefferson","Wood","combustion",19.377,"recovery",180
+2018,"Jefferson","Wood","composting",0,"recovery",180
+2018,"Jefferson","Wood","landfilling",2505.21425777859,"disposal",180
 2018,"Jefferson","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Jefferson","YardDebris","combustion",66.209,"recovery",180
 2018,"Jefferson","YardDebris","composting",1.293,"recovery",180
@@ -549,6 +631,8 @@
 2018,"Josephine","Carpeting","combustion",0,"disposal",180
 2018,"Josephine","Carpeting","landfilling",1843.14282748477,"disposal",180
 2018,"Josephine","Carpeting","recycling",0,"recovery",180
+2018,"Josephine","Nonrecyclables","combustion",0,"disposal",180
+2018,"Josephine","Nonrecyclables","landfilling",14342.7637823221,"disposal",180
 2018,"Josephine","Electronics","landfilling",844.976261684468,"disposal",180
 2018,"Josephine","Electronics","recycling",372.944,"recovery",180
 2018,"Josephine","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -573,6 +657,10 @@
 2018,"Josephine","ScrapMetal","recycling",6944.618,"recovery",180
 2018,"Josephine","TinnedCan","landfilling",492.270645275814,"disposal",180
 2018,"Josephine","TinnedCan","recycling",80.232,"recovery",180
+2018,"Josephine","Wood","combustion",0,"disposal",180
+2018,"Josephine","Wood","combustion",3123.558,"recovery",180
+2018,"Josephine","Wood","composting",0,"recovery",180
+2018,"Josephine","Wood","landfilling",12590.9392505479,"disposal",180
 2018,"Josephine","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Josephine","YardDebris","combustion",635.808,"recovery",180
 2018,"Josephine","YardDebris","composting",13294.911,"recovery",180
@@ -585,6 +673,8 @@
 2018,"Klamath","Carpeting","combustion",0.00205816749850641,"disposal",180
 2018,"Klamath","Carpeting","landfilling",1540.91467430479,"disposal",180
 2018,"Klamath","Carpeting","recycling",0,"recovery",180
+2018,"Klamath","Nonrecyclables","combustion",0.0160160188431052,"disposal",180
+2018,"Klamath","Nonrecyclables","landfilling",11990.9183665529,"disposal",180
 2018,"Klamath","Electronics","landfilling",706.42182561924,"disposal",180
 2018,"Klamath","Electronics","recycling",307.837,"recovery",180
 2018,"Klamath","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -609,6 +699,10 @@
 2018,"Klamath","ScrapMetal","recycling",4592.293,"recovery",180
 2018,"Klamath","TinnedCan","landfilling",411.550884567168,"disposal",180
 2018,"Klamath","TinnedCan","recycling",181.186,"recovery",180
+2018,"Klamath","Wood","combustion",0.0140598230124738,"disposal",180
+2018,"Klamath","Wood","combustion",1980.922,"recovery",180
+2018,"Klamath","Wood","composting",630,"recovery",180
+2018,"Klamath","Wood","landfilling",10526.3481294749,"disposal",180
 2018,"Klamath","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Klamath","YardDebris","combustion",0,"disposal",180
 2018,"Klamath","YardDebris","composting",1573.8,"recovery",180
@@ -621,6 +715,8 @@
 2018,"Lake","Carpeting","combustion",0.00205816749857863,"disposal",180
 2018,"Lake","Carpeting","landfilling",147.882765051498,"disposal",180
 2018,"Lake","Carpeting","recycling",0,"recovery",180
+2018,"Lake","Nonrecyclables","combustion",0.0160160188436672,"disposal",180
+2018,"Lake","Nonrecyclables","landfilling",1150.77764727802,"disposal",180
 2018,"Lake","Electronics","landfilling",67.7958452906762,"disposal",180
 2018,"Lake","Electronics","recycling",0,"recovery",180
 2018,"Lake","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -645,6 +741,9 @@
 2018,"Lake","ScrapMetal","recycling",8.117,"recovery",180
 2018,"Lake","TinnedCan","landfilling",39.4968545527294,"disposal",180
 2018,"Lake","TinnedCan","recycling",0,"recovery",180
+2018,"Lake","Wood","combustion",0.0140598230129671,"disposal",180
+2018,"Lake","Wood","composting",0,"recovery",180
+2018,"Lake","Wood","landfilling",1010.22171651634,"disposal",180
 2018,"Lake","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Lake","YardDebris","combustion",0,"disposal",180
 2018,"Lake","YardDebris","composting",265,"recovery",180
@@ -657,6 +756,8 @@
 2018,"Lane","Carpeting","combustion",0.00341181118812135,"disposal",180
 2018,"Lane","Carpeting","landfilling",8484.32584742272,"disposal",180
 2018,"Lane","Carpeting","recycling",0,"recovery",180
+2018,"Lane","Nonrecyclables","combustion",0.0180219437517627,"disposal",180
+2018,"Lane","Nonrecyclables","landfilling",44816.0917363285,"disposal",180
 2018,"Lane","Electronics","landfilling",2827.7167112443,"disposal",180
 2018,"Lane","Electronics","recycling",2367.066,"recovery",180
 2018,"Lane","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -682,6 +783,10 @@
 2018,"Lane","ScrapMetal","recycling",100553.079,"recovery",180
 2018,"Lane","TinnedCan","landfilling",1465.56154553933,"disposal",180
 2018,"Lane","TinnedCan","recycling",858.075,"recovery",180
+2018,"Lane","Wood","combustion",0.0168824225209418,"disposal",180
+2018,"Lane","Wood","combustion",46685.334,"recovery",180
+2018,"Lane","Wood","composting",244.154,"recovery",180
+2018,"Lane","Wood","landfilling",41982.3858542443,"disposal",180
 2018,"Lane","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Lane","YardDebris","combustion",0,"disposal",180
 2018,"Lane","YardDebris","composting",82343.562,"recovery",180
@@ -694,6 +799,8 @@
 2018,"Lincoln","Carpeting","combustion",0.00503107610760964,"disposal",180
 2018,"Lincoln","Carpeting","landfilling",1328.28342333402,"disposal",180
 2018,"Lincoln","Carpeting","recycling",0,"recovery",180
+2018,"Lincoln","Nonrecyclables","combustion",0.0391502682843096,"disposal",180
+2018,"Lincoln","Nonrecyclables","landfilling",10336.2881556239,"disposal",180
 2018,"Lincoln","Electronics","landfilling",608.942478450169,"disposal",180
 2018,"Lincoln","Electronics","recycling",103.066,"recovery",180
 2018,"Lincoln","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -719,6 +826,10 @@
 2018,"Lincoln","ScrapMetal","recycling",3051.521,"recovery",180
 2018,"Lincoln","TinnedCan","landfilling",354.76086180804,"disposal",180
 2018,"Lincoln","TinnedCan","recycling",99.516,"recovery",180
+2018,"Lincoln","Wood","combustion",0.0343684562537351,"disposal",180
+2018,"Lincoln","Wood","combustion",3351.582,"recovery",180
+2018,"Lincoln","Wood","composting",0,"recovery",180
+2018,"Lincoln","Wood","landfilling",9073.81437906858,"disposal",180
 2018,"Lincoln","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Lincoln","YardDebris","combustion",0,"disposal",180
 2018,"Lincoln","YardDebris","composting",2890.203,"recovery",180
@@ -731,6 +842,8 @@
 2018,"Linn","Carpeting","combustion",2.21321611679675,"disposal",180
 2018,"Linn","Carpeting","landfilling",2525.5347562979,"disposal",180
 2018,"Linn","Carpeting","recycling",0,"recovery",180
+2018,"Linn","Nonrecyclables","combustion",17.2225589298268,"disposal",180
+2018,"Linn","Nonrecyclables","landfilling",19652.9253693578,"disposal",180
 2018,"Linn","Electronics","landfilling",1157.81418852003,"disposal",180
 2018,"Linn","Electronics","recycling",297.389,"recovery",180
 2018,"Linn","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -756,6 +869,10 @@
 2018,"Linn","ScrapMetal","recycling",9632.056,"recovery",180
 2018,"Linn","TinnedCan","landfilling",674.525384365274,"disposal",180
 2018,"Linn","TinnedCan","recycling",224.961,"recovery",180
+2018,"Linn","Wood","combustion",15.118996346555,"disposal",180
+2018,"Linn","Wood","combustion",460.506,"recovery",180
+2018,"Linn","Wood","composting",409.679,"recovery",180
+2018,"Linn","Wood","landfilling",17252.5179370327,"disposal",180
 2018,"Linn","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Linn","YardDebris","combustion",0,"disposal",180
 2018,"Linn","YardDebris","composting",12792.937,"recovery",180
@@ -768,6 +885,8 @@
 2018,"Malheur","Carpeting","combustion",0,"disposal",180
 2018,"Malheur","Carpeting","landfilling",597.699616884486,"disposal",180
 2018,"Malheur","Carpeting","recycling",0,"recovery",180
+2018,"Malheur","Nonrecyclables","combustion",0,"disposal",180
+2018,"Malheur","Nonrecyclables","landfilling",4651.11237714401,"disposal",180
 2018,"Malheur","Electronics","landfilling",274.011313911301,"disposal",180
 2018,"Malheur","Electronics","recycling",24.601,"recovery",180
 2018,"Malheur","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -793,6 +912,9 @@
 2018,"Malheur","ScrapMetal","recycling",66.351,"recovery",180
 2018,"Malheur","TinnedCan","landfilling",159.634929912812,"disposal",180
 2018,"Malheur","TinnedCan","recycling",103.848,"recovery",180
+2018,"Malheur","Wood","combustion",0,"disposal",180
+2018,"Malheur","Wood","composting",13.5,"recovery",180
+2018,"Malheur","Wood","landfilling",4083.02571783764,"disposal",180
 2018,"Malheur","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Malheur","YardDebris","combustion",0,"disposal",180
 2018,"Malheur","YardDebris","composting",192.5,"recovery",180
@@ -805,6 +927,8 @@
 2018,"Marion","Carpeting","combustion",4295.59602253582,"disposal",180
 2018,"Marion","Carpeting","landfilling",3947.10609970262,"disposal",180
 2018,"Marion","Carpeting","recycling",0,"recovery",180
+2018,"Marion","Nonrecyclables","combustion",30824.2003950205,"disposal",180
+2018,"Marion","Nonrecyclables","landfilling",28323.5175652802,"disposal",180
 2018,"Marion","Electronics","landfilling",1121.87436210392,"disposal",180
 2018,"Marion","Electronics","recycling",2110.948,"recovery",180
 2018,"Marion","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -830,6 +954,10 @@
 2018,"Marion","ScrapMetal","recycling",69657.628,"recovery",180
 2018,"Marion","TinnedCan","landfilling",740.918498613356,"disposal",180
 2018,"Marion","TinnedCan","recycling",547.411,"recovery",180
+2018,"Marion","Wood","combustion",14773.9617160213,"disposal",180
+2018,"Marion","Wood","combustion",54703.446,"recovery",180
+2018,"Marion","Wood","composting",4828.01,"recovery",180
+2018,"Marion","Wood","landfilling",13575.3907257917,"disposal",180
 2018,"Marion","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Marion","YardDebris","combustion",860.11,"recovery",180
 2018,"Marion","YardDebris","composting",51822.258,"recovery",180
@@ -842,6 +970,8 @@
 2018,"Metro","Carpeting","combustion",72.7710920889786,"disposal",180
 2018,"Metro","Carpeting","landfilling",29316.1648346535,"disposal",180
 2018,"Metro","Carpeting","recycling",0,"recovery",180
+2018,"Metro","Nonrecyclables","combustion",531.496922485255,"disposal",180
+2018,"Metro","Nonrecyclables","landfilling",214115.948261942,"disposal",180
 2018,"Metro","Electronics","landfilling",7597.50443448675,"disposal",180
 2018,"Metro","Electronics","recycling",5251.15,"recovery",180
 2018,"Metro","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -867,6 +997,10 @@
 2018,"Metro","ScrapMetal","recycling",232715.674,"recovery",180
 2018,"Metro","TinnedCan","landfilling",5065.48824622358,"disposal",180
 2018,"Metro","TinnedCan","recycling",4400.419,"recovery",180
+2018,"Metro","Wood","combustion",516.447144015338,"disposal",180
+2018,"Metro","Wood","combustion",100887.636,"recovery",180
+2018,"Metro","Wood","composting",5094.895,"recovery",180
+2018,"Metro","Wood","landfilling",208053.076678132,"disposal",180
 2018,"Metro","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Metro","YardDebris","combustion",2117.542,"recovery",180
 2018,"Metro","YardDebris","composting",223772.814,"recovery",180
@@ -879,6 +1013,8 @@
 2018,"Milton Freewater","Carpeting","combustion",0,"disposal",180
 2018,"Milton Freewater","Carpeting","landfilling",40.3605503043404,"disposal",180
 2018,"Milton Freewater","Carpeting","recycling",0,"recovery",180
+2018,"Milton Freewater","Nonrecyclables","combustion",0,"disposal",180
+2018,"Milton Freewater","Nonrecyclables","landfilling",314.07323974434,"disposal",180
 2018,"Milton Freewater","Electronics","landfilling",18.5030190862793,"disposal",180
 2018,"Milton Freewater","Electronics","recycling",6.323,"recovery",180
 2018,"Milton Freewater","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -903,6 +1039,9 @@
 2018,"Milton Freewater","ScrapMetal","recycling",99.367,"recovery",180
 2018,"Milton Freewater","TinnedCan","landfilling",10.7795846560181,"disposal",180
 2018,"Milton Freewater","TinnedCan","recycling",3.783,"recovery",180
+2018,"Milton Freewater","Wood","combustion",0,"disposal",180
+2018,"Milton Freewater","Wood","composting",12,"recovery",180
+2018,"Milton Freewater","Wood","landfilling",275.712348181997,"disposal",180
 2018,"Milton Freewater","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Milton Freewater","YardDebris","combustion",0,"disposal",180
 2018,"Milton Freewater","YardDebris","composting",119.76,"recovery",180
@@ -915,6 +1054,8 @@
 2018,"Morrow","Carpeting","combustion",0,"disposal",180
 2018,"Morrow","Carpeting","landfilling",436.68007179722,"disposal",180
 2018,"Morrow","Carpeting","recycling",0,"recovery",180
+2018,"Morrow","Nonrecyclables","combustion",0,"disposal",180
+2018,"Morrow","Nonrecyclables","landfilling",3398.10839661407,"disposal",180
 2018,"Morrow","Electronics","landfilling",200.19300138712,"disposal",180
 2018,"Morrow","Electronics","recycling",1.242,"recovery",180
 2018,"Morrow","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -939,6 +1080,10 @@
 2018,"Morrow","ScrapMetal","recycling",1412.49,"recovery",180
 2018,"Morrow","TinnedCan","landfilling",116.629475218725,"disposal",180
 2018,"Morrow","TinnedCan","recycling",3.95,"recovery",180
+2018,"Morrow","Wood","combustion",0,"disposal",180
+2018,"Morrow","Wood","combustion",146.343,"recovery",180
+2018,"Morrow","Wood","composting",0,"recovery",180
+2018,"Morrow","Wood","landfilling",2983.06358787548,"disposal",180
 2018,"Morrow","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Morrow","YardDebris","combustion",0,"disposal",180
 2018,"Morrow","YardDebris","composting",0,"recovery",180
@@ -951,6 +1096,8 @@
 2018,"Polk","Carpeting","combustion",6.57241487877042,"disposal",180
 2018,"Polk","Carpeting","landfilling",1154.88482400985,"disposal",180
 2018,"Polk","Carpeting","recycling",0,"recovery",180
+2018,"Polk","Nonrecyclables","combustion",51.1444868405905,"disposal",180
+2018,"Polk","Nonrecyclables","landfilling",8986.95422815723,"disposal",180
 2018,"Polk","Electronics","landfilling",529.449072918377,"disposal",180
 2018,"Polk","Electronics","recycling",25.656,"recovery",180
 2018,"Polk","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -975,6 +1122,10 @@
 2018,"Polk","ScrapMetal","recycling",7630.105,"recovery",180
 2018,"Polk","TinnedCan","landfilling",308.449182047597,"disposal",180
 2018,"Polk","TinnedCan","recycling",138.87,"recovery",180
+2018,"Polk","Wood","combustion",44.897701487911,"disposal",180
+2018,"Polk","Wood","combustion",7712.609,"recovery",180
+2018,"Polk","Wood","composting",15.493,"recovery",180
+2018,"Polk","Wood","landfilling",7889.28803761294,"disposal",180
 2018,"Polk","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Polk","YardDebris","combustion",0,"disposal",180
 2018,"Polk","YardDebris","composting",8907.421,"recovery",180
@@ -987,6 +1138,8 @@
 2018,"Sherman","Carpeting","combustion",0,"disposal",180
 2018,"Sherman","Carpeting","landfilling",28.200645168977,"disposal",180
 2018,"Sherman","Carpeting","recycling",0,"recovery",180
+2018,"Sherman","Nonrecyclables","combustion",0,"disposal",180
+2018,"Sherman","Nonrecyclables","landfilling",219.448642902886,"disposal",180
 2018,"Sherman","Electronics","landfilling",12.9283934899881,"disposal",180
 2018,"Sherman","Electronics","recycling",1.029,"recovery",180
 2018,"Sherman","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1011,6 +1164,9 @@
 2018,"Sherman","ScrapMetal","recycling",52.699,"recovery",180
 2018,"Sherman","TinnedCan","landfilling",7.53189041430446,"disposal",180
 2018,"Sherman","TinnedCan","recycling",0,"recovery",180
+2018,"Sherman","Wood","combustion",0,"disposal",180
+2018,"Sherman","Wood","composting",0,"recovery",180
+2018,"Sherman","Wood","landfilling",192.645195398879,"disposal",180
 2018,"Sherman","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Sherman","YardDebris","combustion",0,"disposal",180
 2018,"Sherman","YardDebris","composting",0,"recovery",180
@@ -1023,6 +1179,8 @@
 2018,"Tillamook","Carpeting","combustion",0.000914741110475696,"disposal",180
 2018,"Tillamook","Carpeting","landfilling",645.651214899695,"disposal",180
 2018,"Tillamook","Carpeting","recycling",0,"recovery",180
+2018,"Tillamook","Nonrecyclables","combustion",0.00711823059715666,"disposal",180
+2018,"Tillamook","Nonrecyclables","landfilling",5024.25678736617,"disposal",180
 2018,"Tillamook","Electronics","landfilling",295.99439706063,"disposal",180
 2018,"Tillamook","Electronics","recycling",100.003,"recovery",180
 2018,"Tillamook","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1047,6 +1205,10 @@
 2018,"Tillamook","ScrapMetal","recycling",3526.613,"recovery",180
 2018,"Tillamook","TinnedCan","landfilling",172.441948308215,"disposal",180
 2018,"Tillamook","TinnedCan","recycling",26.142,"recovery",180
+2018,"Tillamook","Wood","combustion",0.00624881022796013,"disposal",180
+2018,"Tillamook","Wood","combustion",422.18,"recovery",180
+2018,"Tillamook","Wood","composting",0,"recovery",180
+2018,"Tillamook","Wood","landfilling",4410.59428635715,"disposal",180
 2018,"Tillamook","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Tillamook","YardDebris","combustion",0,"disposal",180
 2018,"Tillamook","YardDebris","composting",1089.25,"recovery",180
@@ -1059,6 +1221,8 @@
 2018,"Umatilla","Carpeting","combustion",0,"disposal",180
 2018,"Umatilla","Carpeting","landfilling",1900.46055120425,"disposal",180
 2018,"Umatilla","Carpeting","recycling",0,"recovery",180
+2018,"Umatilla","Nonrecyclables","combustion",0,"disposal",180
+2018,"Umatilla","Nonrecyclables","landfilling",14788.7924674517,"disposal",180
 2018,"Umatilla","Electronics","landfilling",871.253181299452,"disposal",180
 2018,"Umatilla","Electronics","recycling",153.952,"recovery",180
 2018,"Umatilla","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1084,6 +1248,10 @@
 2018,"Umatilla","ScrapMetal","recycling",19529.113,"recovery",180
 2018,"Umatilla","TinnedCan","landfilling",507.579189150102,"disposal",180
 2018,"Umatilla","TinnedCan","recycling",15.71,"recovery",180
+2018,"Umatilla","Wood","combustion",0,"disposal",180
+2018,"Umatilla","Wood","combustion",2547.476,"recovery",180
+2018,"Umatilla","Wood","composting",0,"recovery",180
+2018,"Umatilla","Wood","landfilling",12982.4900118725,"disposal",180
 2018,"Umatilla","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Umatilla","YardDebris","combustion",0,"disposal",180
 2018,"Umatilla","YardDebris","composting",972.7,"recovery",180
@@ -1096,6 +1264,8 @@
 2018,"Union","Carpeting","combustion",0,"disposal",180
 2018,"Union","Carpeting","landfilling",433.223562431592,"disposal",180
 2018,"Union","Carpeting","recycling",0,"recovery",180
+2018,"Union","Nonrecyclables","combustion",0,"disposal",180
+2018,"Union","Nonrecyclables","landfilling",3371.21091661234,"disposal",180
 2018,"Union","Electronics","landfilling",198.608388236857,"disposal",180
 2018,"Union","Electronics","recycling",57.814,"recovery",180
 2018,"Union","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1120,6 +1290,10 @@
 2018,"Union","ScrapMetal","recycling",272.485,"recovery",180
 2018,"Union","TinnedCan","landfilling",115.706303085537,"disposal",180
 2018,"Union","TinnedCan","recycling",26.027,"recovery",180
+2018,"Union","Wood","combustion",0,"disposal",180
+2018,"Union","Wood","combustion",948.43,"recovery",180
+2018,"Union","Wood","composting",0,"recovery",180
+2018,"Union","Wood","landfilling",2959.45136488733,"disposal",180
 2018,"Union","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Union","YardDebris","combustion",0,"disposal",180
 2018,"Union","YardDebris","composting",1511.07,"recovery",180
@@ -1132,6 +1306,8 @@
 2018,"Wallowa","Carpeting","combustion",0.000457370555245456,"disposal",180
 2018,"Wallowa","Carpeting","landfilling",116.741067132646,"disposal",180
 2018,"Wallowa","Carpeting","recycling",0,"recovery",180
+2018,"Wallowa","Nonrecyclables","combustion",0.00355911529863754,"disposal",180
+2018,"Wallowa","Nonrecyclables","landfilling",908.442647314908,"disposal",180
 2018,"Wallowa","Electronics","landfilling",53.5191462212462,"disposal",180
 2018,"Wallowa","Electronics","recycling",10.654,"recovery",180
 2018,"Wallowa","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1156,6 +1332,9 @@
 2018,"Wallowa","ScrapMetal","recycling",86.328,"recovery",180
 2018,"Wallowa","TinnedCan","landfilling",31.1794612932944,"disposal",180
 2018,"Wallowa","TinnedCan","recycling",0,"recovery",180
+2018,"Wallowa","Wood","combustion",0.00312440511403204,"disposal",180
+2018,"Wallowa","Wood","composting",0,"recovery",180
+2018,"Wallowa","Wood","landfilling",797.485502692775,"disposal",180
 2018,"Wallowa","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Wallowa","YardDebris","combustion",0,"disposal",180
 2018,"Wallowa","YardDebris","composting",700,"recovery",180
@@ -1168,6 +1347,8 @@
 2018,"Wasco","Carpeting","combustion",0.0020581674985506,"disposal",180
 2018,"Wasco","Carpeting","landfilling",523.925952141343,"disposal",180
 2018,"Wasco","Carpeting","recycling",0,"recovery",180
+2018,"Wasco","Nonrecyclables","combustion",0.0160160188434491,"disposal",180
+2018,"Wasco","Nonrecyclables","landfilling",4077.02868108499,"disposal",180
 2018,"Wasco","Electronics","landfilling",240.190280339805,"disposal",180
 2018,"Wasco","Electronics","recycling",69.289,"recovery",180
 2018,"Wasco","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1192,6 +1373,9 @@
 2018,"Wasco","ScrapMetal","recycling",592.911,"recovery",180
 2018,"Wasco","TinnedCan","landfilling",139.931297071168,"disposal",180
 2018,"Wasco","TinnedCan","recycling",13.32,"recovery",180
+2018,"Wasco","Wood","combustion",0.0140598230127756,"disposal",180
+2018,"Wasco","Wood","composting",11.37,"recovery",180
+2018,"Wasco","Wood","landfilling",3579.06057893477,"disposal",180
 2018,"Wasco","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Wasco","YardDebris","combustion",0,"disposal",180
 2018,"Wasco","YardDebris","composting",831.489,"recovery",180
@@ -1204,6 +1388,8 @@
 2018,"Wheeler","Carpeting","combustion",0.000457370555237251,"disposal",180
 2018,"Wheeler","Carpeting","landfilling",8.60016723541814,"disposal",180
 2018,"Wheeler","Carpeting","recycling",0,"recovery",180
+2018,"Wheeler","Nonrecyclables","combustion",0.00355911529857369,"disposal",180
+2018,"Wheeler","Nonrecyclables","landfilling",66.9238245168431,"disposal",180
 2018,"Wheeler","Electronics","landfilling",3.94268802833996,"disposal",180
 2018,"Wheeler","Electronics","recycling",2.266,"recovery",180
 2018,"Wheeler","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1228,6 +1414,9 @@
 2018,"Wheeler","ScrapMetal","recycling",83.642,"recovery",180
 2018,"Wheeler","TinnedCan","landfilling",2.29695160425335,"disposal",180
 2018,"Wheeler","TinnedCan","recycling",0,"recovery",180
+2018,"Wheeler","Wood","combustion",0.00312440511397599,"disposal",180
+2018,"Wheeler","Wood","composting",0,"recovery",180
+2018,"Wheeler","Wood","landfilling",58.7497515607465,"disposal",180
 2018,"Wheeler","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Wheeler","YardDebris","combustion",0,"disposal",180
 2018,"Wheeler","YardDebris","composting",0,"recovery",180
@@ -1240,6 +1429,8 @@
 2018,"Yamhill","Carpeting","combustion",0.0315585683116085,"disposal",180
 2018,"Yamhill","Carpeting","landfilling",2052.68275660974,"disposal",180
 2018,"Yamhill","Carpeting","recycling",0,"recovery",180
+2018,"Yamhill","Nonrecyclables","combustion",0.245578955603438,"disposal",180
+2018,"Yamhill","Nonrecyclables","landfilling",15973.3382888595,"disposal",180
 2018,"Yamhill","Electronics","landfilling",941.038413431689,"disposal",180
 2018,"Yamhill","Electronics","recycling",276.087,"recovery",180
 2018,"Yamhill","FoodWaste","anaerobicDigestion",0,"recovery",180
@@ -1264,6 +1455,10 @@
 2018,"Yamhill","ScrapMetal","recycling",1889.432,"recovery",180
 2018,"Yamhill","TinnedCan","landfilling",548.235030988754,"disposal",180
 2018,"Yamhill","TinnedCan","recycling",602.936,"recovery",180
+2018,"Yamhill","Wood","combustion",0.21558395286597,"disposal",180
+2018,"Yamhill","Wood","combustion",1301.476,"recovery",180
+2018,"Yamhill","Wood","composting",0,"recovery",180
+2018,"Yamhill","Wood","landfilling",14022.3554592293,"disposal",180
 2018,"Yamhill","YardDebris","anaerobicDigestion",0,"recovery",180
 2018,"Yamhill","YardDebris","combustion",0,"disposal",180
 2018,"Yamhill","YardDebris","composting",16961.589,"recovery",180

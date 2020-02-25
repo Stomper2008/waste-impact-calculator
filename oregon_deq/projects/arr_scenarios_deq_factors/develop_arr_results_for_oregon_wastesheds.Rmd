@@ -143,7 +143,7 @@ ggplot()+
   ggtitle("Weights and recovery rates for materials in the waste stream")+
   theme_539()+
   geom_bar(
-    data=masses_eol_by_umbDisp %>% filter(wasteshed=="Oregon total"),
+    data=masses_eol_by_umbDisp %>% filter(wasteshed=="Metro"),
     aes(
       x = factor(material, levels=material_sort_order), 
       y = tons, color=umbDisp, fill=umbDisp, alpha=umbDisp
@@ -151,7 +151,7 @@ ggplot()+
     stat="identity"
   )+
   geom_text(
-    data=masses_eol_with_rr %>% filter(wasteshed=="Oregon total"),
+    data=masses_eol_with_rr %>% filter(wasteshed=="Metro"),
     aes(
       x=material, 
       y=tons,
@@ -294,7 +294,7 @@ junk3 <-
   weight_vs_impact_chart_data %>%
   filter(
     (impactCategory=="Weight" | impactCategory=="Energy demand")
-    & wasteshed=="Oregon total"
+    & wasteshed=="Metro"
   ) 
 ggplot()+
   theme_539()+
@@ -510,8 +510,8 @@ junk_dispose_all <-
   )
 # that's the dispose_all scenario
 
-rm(disposal_disposition_proportions_by_wasteshed, junk_dispose_alter1,
-   junk_dispose_alter2, junk_dispose_alter3, junk_dispose_static)
+# rm(disposal_disposition_proportions_by_wasteshed, junk_dispose_alter1,
+#   junk_dispose_alter2, junk_dispose_alter3, junk_dispose_static)
 ```
 
 So the actual and the dispose_all mass profiles have been created.  Now, for the optimal.
