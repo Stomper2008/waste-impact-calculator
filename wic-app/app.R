@@ -34,6 +34,7 @@ library(scales)
 library(openxlsx)
 library(knitr)
 library(ggforce)
+library(viridis)
 
 # importing some graphic conventions (to be expanded later)
 source(file="../oregon_deq/resources/theme_539.R")
@@ -1179,15 +1180,15 @@ server <- function(input, output) {
     renderTable(hm_15aa())
   # second try: make a plotly heatmap with selected data
   # and external names
-  output$hm_chart_pctImpact <-
-    renderPlotly(
-      heatmaply(
-        x=hm_15ac(), labRow = hm_15ab(),
-        main="heatmap of impact intensities",
-        colors = viridis( n=256, begin=0, end=1, option="viridis"),
-        Rowv = FALSE
-      )
-    )
+  # output$hm_chart_pctImpact <-
+  #   renderPlotly(
+  #     heatmaply(
+  #       x=hm_15ac(), labRow = hm_15ab(),
+  #       main="heatmap of impact intensities",
+  #       colors = viridis( n=256, begin=0, end=1, option="viridis"),
+  #       Rowv = FALSE
+  #     )
+  #   )
 
   
   # reactive objects for the recycling and its limits page
