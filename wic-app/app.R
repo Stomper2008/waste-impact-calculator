@@ -601,26 +601,31 @@ ui <-
                 )
               ), # close fluidRow
               fluidRow(
+                width=12,
                 column(
                   width=6,
-                  selectInput(
-                    inputId="arr_wasteshed_choice",
-                    label="choose a wasteshed",
-                    choices = unique(arr_summary_data_1$wasteshed),
-                    selected = "Metro",
-                    width = "100%"
+                  wellPanel(
+                    selectInput(
+                      inputId="arr_wasteshed_choice",
+                      label="choose a wasteshed",
+                      choices = unique(arr_summary_data_1$wasteshed),
+                      selected = "Oregon total",
+                      width = "100%"
+                    )
                   )
                 ),
                 column(
                   width=6,
-                  selectInput(
-                    inputId="arr_impactCategory_choice",
-                    label="choose an impact category",
-                    choices= unique(arr_summary_data_1$impactCategory),
-                    selected="Smog",
-                    width = "100%"
-                  )
-                )
+                  wellPanel(
+                    selectInput(
+                      inputId="arr_impactCategory_choice",
+                      label="choose an impact category",
+                      choices= unique(arr_summary_data_1$impactCategory),
+                      selected="Smog",
+                      width = "100%"
+                    )
+                  ) # close wellPanel
+                ) # close column
               ) # close fluidRow
             ) # close mainpanel for "recycling and its limits (ARR)"
           ) # close sidebarlayout for "recycling and its limits (ARR)"
@@ -642,34 +647,39 @@ ui <-
                 width=12,
                 column(
                   width=6,
-                  plotOutput(outputId="normalized_chart")
+                  plotOutput(outputId="normalized_chart_disposal")
+                ),
+                column(
+                  width=6,
+                  plotOutput(outputId="normalized_chart_recovery")
                 )
               ),
               fluidRow(
                 width=12,
-                column(
-                  width=6,
+                wellPanel(
                   selectInput(
                     inputId="normalized_wasteshed_choice",
                     label = "choose a wasteshed",
                     choices = unique(normalized_impacts_3$wasteshed),
                     selected = "Metro"
                   )
-                ),
-                column(
-                  width=6,
-                  checkboxGroupInput(
-                    inputId="normalized_scenario_choice",
-                    label = "choose scenario(s)",
-                    choices = c("actual", "dispose_all", "optimal"),
-                    selected = "optimal",
-                    inline = TRUE
-                  )
                 )
-              ),
-              fluidRow(
-                dataTableOutput(outputId="normalized_results")
+                # ,
+                # column(
+                #   width=6,
+                #   checkboxGroupInput(
+                #     inputId="normalized_scenario_choice",
+                #     label = "choose scenario(s)",
+                #     choices = c("actual", "dispose_all", "optimal"),
+                #     selected = "optimal",
+                #     inline = TRUE
+                #   )
+                # )
               )
+              # ,
+              # fluidRow(
+              #   dataTableOutput(outputId="normalized_results")
+              # )
             )  
             ) # close sidebar layout for normalized view
         ), # close tabPanel for normalized view
@@ -700,9 +710,12 @@ ui <-
           ),
           mainPanel(
             width=9,
-            plotOutput(outputId = "sp_chart"),
-            wellPanel(
-              h3("Options"),
+            column(
+              width=8,
+              plotOutput(outputId = "sp_chart")
+            ),
+            column(
+              width=4,
               selectInput(
                 inputId = "sp_wasteshed_choice",
                 label = "choose a wasteshed",
@@ -723,9 +736,10 @@ ui <-
                 selected = "ScrapMetal",
                 inline = TRUE
               )
-            ),
-            dataTableOutput(outputId = "sp_table")
-          )
+            )
+            # ,
+            # dataTableOutput(outputId = "sp_table")
+          ) # close mainPanel 
         ) # close sidebar layout for strategy chart page
       ) # close tabpanel for strategy chart page
       
@@ -786,12 +800,14 @@ ui <-
                   width = "100%"
                 )
               ),
-              selectInput(
-                inputId="fe_ImpactCategoryChoice",
-                label=h3("Choose your impact category"),
-                choices = unique(impact_factors$impactCategory),
-                selected="Energy demand",
-                width="100%"
+              wellPanel(
+                selectInput(
+                  inputId="fe_ImpactCategoryChoice",
+                  label="Choose an impact category",
+                  choices = unique(impact_factors$impactCategory),
+                  selected="Energy demand",
+                  width="100%"
+                )
               )
             ),
             
@@ -807,11 +823,12 @@ ui <-
                   plotOutput("fed_detailedImpactsChart")
                 )
               ),
-              fluidRow(
+              wellPanel(
                 selectInput(
                   inputId = "fe_detailedImpactsCategoryChoice",
                   label = "choose an impact category",
-                  choices = unique(impact_factors$impactCategory)
+                  choices = unique(impact_factors$impactCategory),
+                  width="100%"
                 )
               )
             ),
@@ -1151,7 +1168,7 @@ server <- function(input, output) {
   hm_new_chart_object <- reactive({
     ggplot()+
       theme_539()+
-      ggtitle("new heatmap")+
+      ggtitle("Heatmap of impacts by material")+
       geom_tile(
         data = 
           hm_data_2 %>%
@@ -1181,7 +1198,14 @@ server <- function(input, output) {
         ),
         color="gray80"
       )+
-      scale_fill_viridis()+
+      scale_fill_viridis(
+        guide = 
+          guide_colorbar(
+            title = "Percent of total impact under the 'actual' scenario",
+            title.vjust = 0.85,
+            barwidth = 20
+          )
+      )+
       theme(
         panel.grid = element_blank(),
         axis.ticks = element_line()
@@ -1239,26 +1263,27 @@ server <- function(input, output) {
   
   # reactive objects for the recycling and its limits page
   
-  normalized_chart_object <- reactive({
+  normalized_chart_disposal_object <- reactive({
     ggplot()+
     theme_539()+
-    ggtitle("Total impacts of recovery-oriented\nmanagement scenarios (as %\n of 'actual' scenario impact)")+
+    ggtitle("Normalized impacts of the\n'dispose all' scenario (as %\n of 'actual' scenario)")+
     geom_bar(
       data = 
         normalized_impacts_3 %>%
         filter(
           wasteshed == input$normalized_wasteshed_choice,
-          scenario %in% input$normalized_scenario_choice
+          scenario == "dispose_all"
         ),
       aes(
         x = impactCategory,
-        y = pctImpact,
-        color = scenario,
-        fill = scenario
+        y = pctImpact
       ),
+      color="black",
+      size=1.6,
+      fill=myPal2[3],
       stat="identity",
       position = "dodge",
-      alpha = 0.6
+      alpha = 1
     )+
     geom_hline(
       yintercept = 1, 
@@ -1276,11 +1301,52 @@ server <- function(input, output) {
     )
   })
   
-  output$normalized_chart <- 
-    renderPlot({normalized_chart_object()})
+  output$normalized_chart_disposal <- 
+    renderPlot({normalized_chart_disposal_object()})
+
+  normalized_chart_recovery_object <- reactive({
+    ggplot()+
+      theme_539()+
+      ggtitle("Normalized impacts of the\n'optimal recovery' scenario\n(as % of 'actual' scenario)")+
+      geom_bar(
+        data = 
+          normalized_impacts_3 %>%
+          filter(
+            wasteshed == input$normalized_wasteshed_choice,
+            scenario == "optimal"
+          ),
+        aes(
+          x = impactCategory,
+          y = pctImpact
+        ),
+        color="black",
+        size=1.6,
+        fill=myPal2[2],
+        stat="identity",
+        position = "dodge",
+        alpha = 1
+      )+
+      geom_hline(
+        yintercept = 1, 
+        linetype="dotted", 
+        size=2,
+        color = "gray50"
+      )+
+      scale_y_continuous(labels=percent)+
+      scale_color_manual(values=myPal2)+
+      scale_fill_manual(values=myPal2)+
+      coord_flip()+
+      theme(
+        panel.grid = element_blank(),
+        axis.ticks = element_line()
+      )
+  })
   
-  output$normalized_results <- 
-    renderDataTable(normalized_impacts_3)
+  output$normalized_chart_recovery <- 
+    renderPlot({normalized_chart_recovery_object()})
+  
+  # output$normalized_results <- 
+  #   renderDataTable(normalized_impacts_3)
     
   # generating output objects for the 
   # recycling and its limits (ARR) page
@@ -1373,24 +1439,30 @@ server <- function(input, output) {
         data=arr_weight_data(),
         aes(
           x=scenario, y=tons, 
-          color=scenario, fill=scenario, alpha=umbDisp
+          fill=scenario, alpha=umbDisp
         ),
+        color=NA,
         stat="identity",
         position="stack"
       )+
       # geom_text(
-      #   data=arr_weight_data(),
-      #   aes(x=scenario, y=tons/2, label=umbDisp),
+      #   data=
+      #     arr_weight_data() %>%
+      #     group_by(wasteshed, scenario) %>%
+      #     summarise(tons=sum(tons)),
+      #   aes(x=scenario, y=sum(tons)/2, label=scenario),
       #   color="white",
       #   size=7,
-      #   hjust=0,
+      #   hjust=0.5,
       #   fontfamily="bold"
       # )+
       scale_alpha_manual(values=c(1,0.5))+
-      scale_color_manual(values=myPal2)+
       scale_fill_manual(values=myPal2)+
       coord_flip()+
-      theme(legend.position="none")
+      theme(
+        axis.title=element_blank(),
+        legend.position="none"
+        )
     })
   
   output$arr_impact_chart <- renderPlot({
@@ -1636,7 +1708,7 @@ server <- function(input, output) {
         aes(x=scenario, y=tons, fill=disposition),
         stat="identity",
         position="stack",
-        color="black"
+        color=NA
       )+
       coord_flip()+
       # the following fill spec works but I can't control colors
@@ -1735,22 +1807,26 @@ server <- function(input, output) {
   fe_totalImpactChartObject <- reactive({
     ggplot()+
       ggtitle(fe_impact_chart_title())+
-      theme_fivethirtyeight()+
+      theme_539()+
       geom_bar(
         data=filter(
           fe_summed_impacts(), 
           impactCategory==input$fe_ImpactCategoryChoice
         ) %>% mutate(statistic="total impact"),
-        aes(x=scenario, y=impact, color=statistic),
-        alpha=0.2,
-        size=2,
+        aes(x=scenario, y=impact, fill=scenario),
+        color="black",
+        alpha=0.6,
+        size=1.6,
         stat="identity",
         position="stack"
       )+
+      scale_fill_manual(values=myPal2[1:2])+
       coord_flip()+
       theme(
         axis.text.y = element_text(size = 12),
-        legend.position="bottom"
+        axis.ticks = element_line(),
+        legend.position="bottom",
+        panel.grid = element_blank()
       )
   })  # close fe_totalImpactChartObject definition
   
@@ -1812,7 +1888,11 @@ server <- function(input, output) {
       )+
       scale_fill_viridis(begin=0.32, end=1, discrete=TRUE)+
       facet_grid(material~.)+
-      coord_flip()
+      coord_flip()+
+      theme(
+        panel.grid=element_blank(),
+        axis.ticks=element_line()
+      )
   }) # close defining fe_detailed_tons_chart_object
   
   output$fed_detailedTonsChart <- renderPlot({
