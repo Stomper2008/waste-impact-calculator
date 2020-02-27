@@ -287,16 +287,38 @@ ui <-
           tabsetPanel(
             tabPanel(
               title = "Video",
-              "insert youtube video here"
+              fluidRow(
+                align="center",
+                h1(" "),
+                HTML(
+                  '<iframe width="560" height="315" 
+                  src="https://www.youtube.com/embed/Xd8y73b6Wn8" 
+                  frameborder="0" 
+                  allow="accelerometer; autoplay; encrypted-media; 
+                  gyroscope; picture-in-picture" allowfullscreen>
+                    </iframe>'
+                )
+              )
             ),
             tabPanel(
+              width=12,
               title = "Understanding the impacts of materials",
+              h2(" "),
               "insert essay about materials lifecycle, cbei results,
-              etc. here"
+              etc. here",
+              img(src="traditionalSolidWasteMeasurements.png", width="100%"),
+              img(src="fullEcosystem2LClabelsGrey.png", width="100%")
             ),
             tabPanel(
               title = "Glossary and conventions",
-              "insert some verbiage here -- could i put it in an rmd?"
+              "Here are some key words.. e.g.",
+              "insert some verbiage here -- could i put it in an rmd?",
+              "FOR FULL DOCUMENTATION SEE THIS LINK"
+            ),
+            tabPanel(
+              title = "News & updates",
+              "Maybe a place to put in news -- but need to watch out, 
+              there should only be one place to look for documentation."
             )
           )
         )
@@ -346,7 +368,8 @@ ui <-
                 inputId="wvi_wasteshed_choice",
                 label="choose a wasteshed",
                 choices=unique(wicf_weight_summaries$wasteshed),
-                selected = "Metro"
+                selected = "Metro",
+                width="100%"
               )
             ),
             column(
@@ -355,7 +378,8 @@ ui <-
                 inputId="wvi_impact_cat_choice",
                 label="choose an impact category",
                 choices = unique(wicf_impacts_net$impactCategory),
-                selected="Global warming"
+                selected="Global warming",
+                width="100%"
               )
             ),
             column(
@@ -364,7 +388,8 @@ ui <-
                 inputId="wvi_scenario_choice",
                 label = "choose management scenario(s)",
                 choices = unique(wicf_weight_summaries$scenario),
-                selected = "actual"
+                selected = "actual",
+                width="100%"
               )
             )
           )
@@ -420,7 +445,8 @@ ui <-
                     inputId="wicf_wasteshed_choice",
                     label="choose a wasteshed",
                     selected="Metro",
-                    choices=unique(wicf_weights$wasteshed)
+                    choices=unique(wicf_weights$wasteshed),
+                    width = "100%"
                   )
                 ),
                 column(
@@ -429,7 +455,8 @@ ui <-
                     inputId="wicf_impactCategory_choice",
                     label="choose an impact category",
                     selected="Smog",
-                    choices=unique(wicf_impacts_net$impactCategory)
+                    choices=unique(wicf_impacts_net$impactCategory),
+                    width = "100%"
                   )
                 ),
                 column(
@@ -438,7 +465,8 @@ ui <-
                     inputId="wicf_scenario_choice",
                     label="choose a management scenario",
                     selected="actual",
-                    choices=unique(wicf_impacts_net$scenario)
+                    choices=unique(wicf_impacts_net$scenario),
+                    width = "100%"
                   )
                 )
               )
@@ -909,12 +937,12 @@ server <- function(input, output) {
       aes(
         x = material,
         y = tons,
-        fill = scenario,
-        color = scenario
+        fill = scenario
       ),
+      color=NA,
       stat = "identity",
       position = "dodge",
-      alpha=0.6
+      alpha=1
     )+
     # geom_text(
     #   data=wrr_chart_data_2(),
@@ -954,16 +982,20 @@ server <- function(input, output) {
       )
   })
   
-  # wvi_chart_title <- reactive({
-  #   paste(
-  #     
-  #   )
-  # })
-  
+  wvi_chart_title <- reactive({
+    paste(
+      unique(wvi_chart_data()$impactCategory),
+      " impact (",
+      unique(wvi_chart_data()$impactUnits),
+      ")",
+      sep=""
+    )
+  })
+
   output$wvi_chart <-
     renderPlot({
       ggplot()+
-        ggtitle("Life cycle impacts")+
+        ggtitle(wvi_chart_title())+
         theme_539()+
         geom_bar(
           data=wvi_chart_data(),
@@ -972,11 +1004,11 @@ server <- function(input, output) {
             y=impact,
             fill = scenario
             ),
-          alpha=0.2,
+          alpha=0.5,
           stat="identity",
           position="dodge",
           color="black",
-          size=1
+          size=1.3
         )+
         scale_fill_manual(values=myPal2[c(1,3,2)])+
         coord_flip()+
@@ -1008,10 +1040,10 @@ server <- function(input, output) {
         aes(
           x=material,
           y=tons,
-          color=umbDisp,
-          fill=umbDisp,
-          alpha=umbDisp
+          fill=umbDisp
         ),
+        alpha=1,
+        color = NA,
         stat="identity",
         position="stack"
       ) +
@@ -1041,34 +1073,48 @@ server <- function(input, output) {
       )
   }) # close plot definition for wicf_weight_chart_object
 
+  
   output$wicf_weight_chart <- renderPlot({
     wicf_weight_chart_object()
   }) 
+  
+  wicf_impact_chart_data <- reactive({
+    wicf_impacts_by_lcstage %>%
+      filter(
+        wasteshed==input$wicf_wasteshed_choice,
+        scenario==input$wicf_scenario_choice,
+        optVariant %in% c(
+          "actual", "dispose_all", input$wicf_impactCategory_choice
+        ),
+        impactCategory==input$wicf_impactCategory_choice
+      )
+  })
+  
+  wicf_impact_chart_title <- reactive({
+    paste(
+      unique(wicf_impact_chart_data()$impactCategory),
+      " impact (",
+      unique(wicf_impact_chart_data()$impactUnits),
+      ")",
+      sep=""
+    )
+  })
 
   output$wicf_impact_chart <- renderPlot({  
     ggplot()+
     theme_539()+
-    ggtitle("Impacts")+
+    ggtitle(wicf_impact_chart_title())+
     geom_bar(
-      data=
-        wicf_impacts_by_lcstage %>%
-        filter(
-          wasteshed==input$wicf_wasteshed_choice,
-          scenario==input$wicf_scenario_choice,
-          optVariant %in% c(
-            "actual", "dispose_all", input$wicf_impactCategory_choice
-          ),
-          impactCategory==input$wicf_impactCategory_choice
-        ),
+      data= wicf_impact_chart_data(),
       aes(
         x=factor(material, levels=material_sort_order),
         y=impact,
-        color=LCstage,
         fill=LCstage
       ),
+      color=NA,
       stat="identity",
       position="stack",
-      alpha=0.3
+      alpha=0.5
     )+
     geom_bar(
       data=
@@ -1087,7 +1133,7 @@ server <- function(input, output) {
       ),
       color="black",
       fill=NA,
-      size=1.5,
+      size=1.3,
       stat="identity"
     )+
     scale_color_manual(values=myPal2)+
