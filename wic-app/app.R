@@ -856,22 +856,24 @@ ui <-
             tabPanel(
               title="Download",
               fluidRow(
-                width = 12,
                 column(
-                  width = 6,
-                  wellPanel(
-                    h3("Download all your entered data and results 
-                       (Excel workbook format)"),
-                    downloadButton(
-                      outputId = "fe_fullDataDownload",
-                      label = "download"
-                    )
+                  width=4,
+                  textAreaInput(
+                    inputId = "fe_baseline_description",
+                    label="describe your baseline scenario"
                   )
                 ),
                 column(
-                  width=6,
+                  width=4,
+                  textAreaInput(
+                    inputId = "fe_alternative_description",
+                    label = "describe your alternative scenario"
+                  )
+                ),
+                column(
+                  width=4,
                   wellPanel(
-                    h3("Download a formatted report with results
+                    h4("Download a formatted report with results
                        and charts"),
                     downloadButton(
                       outputId = "fe_md_report",
@@ -880,6 +882,15 @@ ui <-
                   )
                 )
               ),
+              wellPanel(
+                h4("Download all your entered data and results 
+                       (Excel workbook format)"),
+                downloadButton(
+                  outputId = "fe_fullDataDownload",
+                  label = "download"
+                )
+              ),
+
               fluidRow(
                   h3("Preview of detailed impact table"),
                   DTOutput("fe_detailedImpactTable")
@@ -1979,7 +1990,47 @@ server <- function(input, output) {
   output$fed_detailedImpactsChart <- renderPlot({
     fe_detailed_impacts_chart_object()
   })
+
   
+  # an extra chart that is just global warming detail
+  # may not appear in the app! just for the report!
+  fe_detailed_impacts_chart_object_ghg <- reactive({
+    ggplot()+
+      ggtitle("Detailed GHG impacts (kg CO2 eq)\n(net in black)")+
+      theme_539()+
+      geom_bar(
+        data = fe_combos_with_impacts_detailed() %>%
+          filter(
+            impactCategory=="Global warming"
+          ),
+        aes(
+          x = scenario,
+          y = impact,
+          fill = LCstage
+        ),
+        stat="identity",
+        position = "stack"
+      )+
+      geom_bar(
+        data = 
+          fe_detailed_tons_impact_total() %>%
+          filter(
+            impactCategory=="Global warming"
+          ),
+        aes(x=scenario, y=impact),
+        stat="identity",
+        position="stack",
+        color="black",
+        fill = NA,
+        size=2
+      )+
+      facet_grid(material~.)+
+      coord_flip()+
+      scale_fill_manual(values=myPal2)+
+      theme()
+  })
+  
+    
   # REACTIVE OBJECTS FOR THE HOTSPOTS PAGE
   # and here are total impacts for the scenario
   fe_summed_material_impacts <- reactive({
@@ -2077,7 +2128,7 @@ server <- function(input, output) {
   fe_hotspot_impacts_baseline_chart_object <- reactive({
     ggplot()+
       theme_539()+
-      ggtitle("Heatmaps of material impacts\n(as % of baseline total)")+
+      ggtitle("Heatmaps of material impacts\n(as % of baseline total)\n(net in black)")+
       geom_tile(
         data=fe_hotspot_impacts(),
         aes(
@@ -2117,10 +2168,26 @@ server <- function(input, output) {
       #set up parameters to pass to our Rmd document
       params <- 
         list(
+          p_fe_baseline_description = 
+            input$fe_baseline_description,
+          p_fe_alternative_description =
+            input$fe_alternative_description,
           p_fe_data_entry_confirmation = 
             fe_mat_disp_combos_2(),
           p_fe_normalizedComparisonChartObject = 
-            fe_normalizedComparisonChartObject()
+            fe_normalizedComparisonChartObject(),
+          p_fe_totalWtChartObject =
+            fe_totalWtChartObject(),
+          p_fe_detailed_tons_chart_object =
+            fe_detailed_tons_chart_object(),
+          p_fe_hotspot_impacts =
+            fe_hotspot_impacts(),
+          p_fe_hotspot_impacts_baseline_chart_object =
+            fe_hotspot_impacts_baseline_chart_object(),
+          p_fe_combos_with_impacts_detailed =
+            fe_combos_with_impacts_detailed(),
+          p_fe_detailed_impacts_chart_object_ghg =
+            fe_detailed_impacts_chart_object_ghg()
           )
       
       rmarkdown::render(
