@@ -540,7 +540,71 @@ ui <-
         title="Solutions",
         
         tabPanel(
-          title="what if if you recycle everything? (single impact view)",
+          title="what if you recycle everything? (single material view)",
+          sidebarLayout(
+            sidebarPanel(
+              width=3,
+              h3("SOME TITLE"),
+              "some text"
+            ), # end sidebarPanel for single material view
+            mainPanel(
+              width=9,
+              fluidRow(
+                width=12,
+                column(
+                  width=6,
+                  plotOutput(outputId="smv_weight_chart")
+                ),
+                column(
+                  width=6,
+                  plotOutput(outputId="smv_impact_chart")
+                )
+              ),
+              fluidRow(
+                column(
+                  width=12,
+                  wellPanel(
+                    checkboxGroupInput(
+                      inputId="smv_material_choice",
+                      label = "choose material(s)",
+                      choices=unique(wicf_weight_summaries$material),
+                      inline=TRUE,
+                      selected = "ScrapMetal"
+                    )
+                  )
+                )
+              ),
+              fluidRow(
+                width=12,
+                column(
+                  width=6,
+                  wellPanel(
+                    selectInput(
+                      inputId="smv_wasteshed_choice",
+                      label="choose a wasteshed",
+                      choices=unique(wicf_weights$wasteshed),
+                      selected = "Oregon total"
+                    )
+                  )
+                ),
+                column(
+                  width=6,
+                  wellPanel(
+                    selectInput(
+                      inputId="smv_impactCategory_choice",
+                      label="choose an impact category",
+                      choices=unique(wicf_impacts_net$impactCategory),
+                      selected="Global warming"
+                    )
+                  )
+                )
+              )
+            )
+          ) # end sidebarLayout for single material view
+        ), # end tabPanel for single material view
+        
+        tabPanel(
+          title="what if you recycle everything? (single impact view)",
           sidebarLayout(
             sidebarPanel(
               h3("ALTERNATIVE RECOVERY RATES for OREGON WASTESHEDS"),
@@ -1273,7 +1337,177 @@ server <- function(input, output) {
 
   
   # reactive objects for the recycling and its limits page
+
+  # generating output for the where impacts come from page
   
+  smv_weight_chart_object <- reactive({
+    ggplot()+
+      theme_539()+
+      ggtitle("Weights and recovery rates")+
+      geom_bar(
+        data=
+          wicf_weights %>%
+          filter(
+            material %in% input$smv_material_choice,
+            wasteshed==input$smv_wasteshed_choice,
+            # scenario==input$smv_scenario_choice,
+            optVariant %in% 
+              c("actual", "dispose_all", 
+                input$smv_impactCategory_choice
+              )
+          ) %>%
+          mutate(
+            scenario=
+              factor(scenario, levels=rev(c("dispose_all", "actual", "optimal")))
+          ),
+        aes(
+          x=scenario,
+          y=tons,
+          fill=umbDisp
+        ),
+        alpha=1,
+        color = NA,
+        stat="identity",
+        position="stack"
+      ) +
+      geom_text(
+        data=wicf_weight_summaries %>%
+          filter(
+            material %in% input$smv_material_choice,
+            wasteshed == input$smv_wasteshed_choice,
+#            scenario == input$smv_scenario_choice,
+            optVariant %in% 
+              c("actual", "dispose_all", 
+                input$smv_impactCategory_choice
+              )
+          ),
+        aes(
+          x=scenario,
+          y=0,
+#          y=tons,
+          label=paste(percent(round(wbrr, 2)), " recovered", sep="")
+        ),
+        hjust=-0.15,
+        color = "white",
+        size=6
+      )+
+      scale_fill_manual(values=myPal2)+
+      scale_color_manual(values=myPal2)+
+      coord_flip()+
+      facet_grid(material~.)+
+      theme(
+        panel.grid = element_blank(),
+        axis.ticks = element_line()
+      )
+  }) # close plot definition for smv_weight_chart_object
+  
+  
+  output$smv_weight_chart <- renderPlot({
+    smv_weight_chart_object()
+  }) 
+  
+  smv_impact_chart_data <- reactive({
+    wicf_impacts_by_lcstage %>%
+      filter(
+        material %in% input$smv_material_choice,
+        wasteshed==input$smv_wasteshed_choice,
+#        scenario==input$smv_scenario_choice,
+        optVariant %in% c(
+          "actual", "dispose_all", input$smv_impactCategory_choice
+        ),
+        impactCategory==input$smv_impactCategory_choice
+      ) %>%
+      mutate(
+        scenario=
+          factor(scenario, levels=rev(c("dispose_all", "actual", "optimal")))
+      )
+  })
+  
+  smv_impact_chart_title <- reactive({
+    paste(
+      unique(smv_impact_chart_data()$impactCategory),
+      " impact (",
+      unique(smv_impact_chart_data()$impactUnits),
+      ")",
+      sep=""
+    )
+  })
+  
+  output$smv_impact_chart <- renderPlot({  
+    ggplot()+
+      theme_539()+
+      ggtitle(smv_impact_chart_title())+
+      geom_bar(
+        data= smv_impact_chart_data(),
+        aes(
+          x=scenario,
+          y=impact,
+          fill=LCstage
+        ),
+        color=NA,
+        stat="identity",
+        position="stack",
+        alpha=0.5
+      )+
+      geom_bar(
+        data=
+          wicf_impacts_net %>%
+          filter(
+            material %in% input$smv_material_choice,
+            wasteshed==input$smv_wasteshed_choice,
+#            scenario==input$smv_scenario_choice,
+            optVariant %in% c(
+              "actual", "dispose_all", input$smv_impactCategory_choice
+            ),
+            impactCategory==input$smv_impactCategory_choice
+          ),
+        aes(
+          x=scenario,
+          y=impact
+        ),
+        color="black",
+        fill=NA,
+        size=1.3,
+        stat="identity"
+      )+
+      scale_color_manual(values=myPal2)+
+      scale_fill_manual(values=myPal2)+
+      coord_flip()+
+      facet_grid(material~.)+
+      theme(
+        panel.grid = element_blank(),
+        axis.ticks = element_line()
+      )
+  }) # close definition of smv_impact_chart
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+    
   normalized_chart_disposal_object <- reactive({
     ggplot()+
     theme_539()+
