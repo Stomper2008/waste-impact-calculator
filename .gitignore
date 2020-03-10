@@ -43,8 +43,9 @@ vignettes/*.pdf
 .Renviron
 .Rproj.user
 
-# Sandbox output (experiments for app)
+# Sandbox (experiments and temporary work)
 /wic-app/sandbox_output/
+/generic_analysis/sandbox/
 
 # app automatically generated images
 /wic-app/Rplot*

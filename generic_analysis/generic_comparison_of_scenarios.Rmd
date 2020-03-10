@@ -1,0 +1,25 @@
+---
+title: "Sample waste stream analysis using the Waste Impact Calculator desktop"
+output: html_notebook
+---
+
+This RMarkdown file demonstrates how to use the "desktop" version of the Waste Impact Calculator to calculate and compare the life cycle impacts associated with solid waste management scenarios.  For example, you might want to compare the impacts associated with your current practice (the "baseline" scenario) with impacts for a scenario where you combust waste instead of landfill it, or a scenario where you recycle more.
+
+This version of the Waste Impact Calculator requires you to know R programming.  If you don't know R, or just want some quick ballpark results, consider using the "app" version of the Waste Impact Calculator, available through your web browser.  
+
+However, if you do know R, doing it in an Rmarkdown file like this one will enable you to customize the output to your liking.  This file serve as your starting point, but the sky's the limit.  Obviously, you are responsible for the credibility of any results.
+
+See full documentation for the Waste Impact Calculator. (link)
+
+INPUTS 
+
+The Waste Impact Calculator requires two specific, coordinated files as input, *mass_profiles* and *impact_factors*.  
+
+* mass_profiles describes the waste in terms of weight.  There should be one record for each combination of 
+* impact_factors combines 
+
+
+(Maybe this text should be in the general documentation.  Don't write it now.  Why reinvent the wheel.)
+
+The example mass_profiles and impact_factors are just examples.
+you can find the real impact factors at THIS DIRECTORY
