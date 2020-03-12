@@ -1,6 +1,8 @@
 ---
 title: "Sample waste stream analysis using the Waste Impact Calculator desktop"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 This RMarkdown file demonstrates how to use the "desktop" version of the Waste Impact Calculator to calculate and compare the life cycle impacts associated with solid waste management scenarios.  For example, you might want to compare the impacts associated with your current practice (the "baseline" scenario) with impacts for a scenario where you combust waste instead of landfill it, or a scenario where you recycle more.
@@ -23,3 +25,602 @@ The Waste Impact Calculator requires two specific, coordinated files as input, *
 
 The example mass_profiles and impact_factors are just examples.
 you can find the real impact factors at THIS DIRECTORY
+
+
+DO STUFF NOW, DOCUMENTATION LATER! 
+
+
+import data
+confirm no factors
+calculate a summary "wasteshed"
+calculate detailed impacts
+calculate a few detailed strings for use later as factors
+then, for each chart, do the processing individually
+
+LOADING PACKAGES
+```{r}
+library(tidyverse)  # contains many useful functions
+library(ggthemes)   # some themes for plotting
+library(scales)     # more useful stuff for charts
+library(rmarkdown)
+library(viridis)
+library(scales)
+```
+
+IMPORTING DATA
+```{r}
+massProfiles <-
+  read.csv(
+    file = "source_data/mass_profiles.csv",
+    stringsAsFactors = FALSE
+  )
+impactFactors <-
+  read.csv(
+    file = "source_data/impact_factors.csv",
+    stringsAsFactors = FALSE
+  )
+```
+
+CREATING A SUMMARY WASTESHED
+```{r}
+# summing up the tons and miles for the existing wastesheds
+temporaryMasses1 <-
+  massProfiles %>%
+  group_by(material, disposition, umbDisp, scenario) %>%
+  summarise(
+    tons = sum(tons),
+    miles = mean(miles, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(wasteshed="All cities")
+
+massProfilesPlus <-
+  bind_rows(massProfiles, temporaryMasses1) %>%
+  arrange(scenario, wasteshed, material, disposition, umbDisp)
+
+rm(temporaryMasses1)
+rm(massProfiles)
+```
+
+CALCULATE DETAILED IMPACTS
+
+```{r}
+impactsInDetail <-
+  left_join(
+    massProfilesPlus,
+    impactFactors,
+    by = c("material", "disposition")
+  ) %>%
+  mutate(
+    impact =
+      case_when(
+        LCstage != "endOfLifeTransport" ~ tons*impactFactor,
+        LCstage == "endOfLifeTransport" ~
+          tons*(miles/impliedMiles)*impactFactor
+      )
+  )
+```
+
+  CALCULATE A FEW THINGS USEFUL FOR OUTPUT LATER
+
+```{r}
+# most abundant materials in the wastestream, in order
+materialSortOrder <-
+  massProfilesPlus %>%
+  group_by(material) %>%
+  summarise(tons=sum(tons)) %>%
+  arrange(desc(tons)) %>%
+  pull(material)
+# a table of impact categories combined with units
+# (for use in chart labels)
+impactLabels <-
+  impactFactors %>%
+  select(impactCategory, impactUnits) %>%
+  distinct() %>%
+  mutate(
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      )
+  )
+# my own little graphic theme for charts, inspired by fivethirtyeight
+theme_539 <- function() {
+  theme_fivethirtyeight() +
+  theme(
+    rect=element_rect(fill="transparent"),
+    panel.grid = element_blank(),
+    axis.ticks = element_line()
+  )
+}
+
+# making an ordered list of scenarios, where "baseline" is first
+scenarioOrder <- 
+  c(
+    "baseline",
+    setdiff(
+        massProfilesPlus %>% 
+        select(scenario) %>% 
+        distinct() %>% 
+        pull(scenario),
+      "baseline")
+  )
+```
+
+from this point on everything can be calculated with impactsInDetail.
+
+I think the first thing users would want to know would be the final answers.
+
+* what are the weights in all the scenarios?
+* what are the impacts for all the scenarios?
+
+```{r}
+# summing weights by disposition for each scenario
+tempWeightData1 <- 
+  impactsInDetail %>%
+  filter(wasteshed == "All cities") %>% # just the total
+  filter(LCstage == "endOfLife") %>% # correct set for weight calculations
+  group_by(scenario, disposition) %>% 
+  summarise(tons=sum(tons)) %>%
+  ungroup() %>%
+  filter(tons != 0) %>%
+  mutate(scenario= factor(scenario, levels=rev(scenarioOrder)))
+```
+
+making that weight data into a chart...
+
+```{r fig.width=5, fig.height=5}
+tempWeightChart1 <-
+  ggplot()+
+  ggtitle("Weight (short tons)")+
+  theme_539()+
+  geom_bar(
+    data = tempWeightData1,
+    aes(x = scenario, y= tons, fill= disposition),
+    color=NA,
+    stat="identity"
+  )+
+  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE)+
+  coord_flip()+
+  guides(fill=guide_legend(ncol=2, title.position = "top"))+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="bottom",
+    legend.title = element_text(size=8),
+    legend.justification="left"
+    )
+tempWeightChart1
+```
+
+Now for comparison, let's look at the impacts associated with those scenarios.  Because there are multiple impact categories, I'll do a faceted chart.
+
+```{r}
+tempImpactData1 <-
+  impactsInDetail %>%
+  filter(wasteshed=="All cities") %>% # same filtering as weight chart
+  group_by(scenario, impactCategory, impactUnits) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup() %>%
+  mutate(
+    scenario = factor(scenario, levels = rev(scenarioOrder)),
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      )
+  ) %>%
+  filter(impactCategory != "Energy demand") #removing to save space
+```
+
+now make that into a full-page chart
+```{r fig.width=6.5, fig.height=9}
+tempImpactChart1 <-
+  ggplot()+
+  ggtitle("Impacts of scenarios compared")+
+  theme_539()+
+  geom_bar(
+    data = tempImpactData1,
+    aes(x = scenario, y= impact, fill=scenario),
+    color=NA,
+    # size=2,
+    stat="identity"
+  )+
+  geom_text(
+    data=tempImpactData1,
+    aes(x=scenario, y=0, label=scenario),
+    color="gray80",
+    size=4,
+    fontface="italic",
+    hjust=-0.1
+  )+
+  facet_wrap(~impactLabel, ncol=2, scales="free")+
+  scale_fill_viridis(
+    begin=0.32, end=0.8, option="plasma", discrete = TRUE
+  )+
+  coord_flip()+
+#  guides(fill=guide_legend(ncol=2, title.position = "top"))+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="none",
+    axis.text.x=element_text(angle=45, hjust=1),
+    axis.text.y=element_blank(),
+    strip.text = element_text(size=11, face="bold")
+    )
+tempImpactChart1
+
+```
+
+After seeing results like this, many people will want to know exactly why the results turned out that way.  That's where getting into the detail would be helpful.
+
+The charts above don't show anything about life cycle stage.  Let's redo them, but show recovery vs. disposal (or umbDisp, in the weight chart) and impacts by LCstage (in the impact chart).
+
+```{r}
+# summing weights by umbDisp for each scenario
+tempWeightData2 <- 
+  impactsInDetail %>%
+  filter(wasteshed == "All cities") %>% # just the total
+  filter(LCstage == "endOfLife") %>% # correct set for weight calculations
+  group_by(scenario, umbDisp) %>% 
+  summarise(tons=sum(tons)) %>%
+  ungroup() %>%
+  filter(tons != 0) %>%
+  mutate(scenario= factor(scenario, levels=rev(scenarioOrder))) %>%
+  group_by(scenario) %>%
+  mutate(recovTons=ifelse(umbDisp=="recovery",tons,0)) %>%
+  ungroup()
+
+# creating a data file that expresses weight-based
+# recovery rate for each scenario
+tempWeightData2a <-
+  tempWeightData2 %>%
+  group_by(scenario) %>%
+  summarise(
+    recovTons=sum(recovTons),
+    tons=sum(tons)
+  ) %>%
+  ungroup() %>%
+  mutate(recovRate=recovTons/tons)
+
+```
+
+making that weight data into a chart...
+
+```{r fig.width=5, fig.height=5}
+tempWeightChart2 <-
+  ggplot()+
+  ggtitle("Weight (short tons) and recovery rates (%)")+
+  theme_539()+
+  geom_bar(
+    data = tempWeightData2,
+    aes(x = scenario, y= tons, fill= umbDisp),
+    color=NA,
+    stat="identity"
+  )+
+  geom_text(
+    data=tempWeightData2a,
+    aes(x=scenario, y=tons, label=percent(recovRate)),
+    hjust=1.1,
+    color="white"
+  )+
+  scale_fill_viridis(
+    begin=0.32, end=0.8, option="viridis", discrete = TRUE
+    )+
+  coord_flip()+
+  guides(fill=guide_legend(ncol=2, title.position = "top"))+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="bottom",
+    legend.title = element_text(size=8),
+    legend.justification="left"
+    )
+tempWeightChart2
+```
+
+Now for comparison, let's look at the impacts associated with those scenarios.  Because there are multiple impact categories, I'll do a faceted chart.
+
+```{r}
+tempImpactData2 <-
+  impactsInDetail %>%
+  filter(wasteshed=="All cities") %>% # same filtering as weight chart
+  group_by(scenario, LCstage, impactCategory, impactUnits) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup() %>%
+  mutate(
+    scenario = factor(scenario, levels = rev(scenarioOrder)),
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      ),
+    LCstage=
+      factor(
+        LCstage,
+        levels=c("production","endOfLife","endOfLifeTransport")
+      )
+  ) %>%
+  filter(impactCategory != "Energy demand") #removing to save space
+```
+
+now make that into a full-page chart
+```{r fig.width=6.5, fig.height=9}
+tempImpactChart2 <-
+  ggplot()+
+  ggtitle("Impacts of scenarios with life cycle stage detail")+
+  theme_539()+
+  geom_bar(
+    data = tempImpactData2,
+    aes(x = scenario, y= impact, fill=LCstage),
+    color=NA,
+    # size=2,
+    stat="identity"
+  )+
+  geom_bar(
+    data=tempImpactData1 %>% mutate(LCstage="Net"),
+    aes(x=scenario, y=impact, color=LCstage),
+    stat="identity",
+    fill=NA,
+    size=2
+  )+
+  geom_text(
+    data=tempImpactData1 %>% mutate(LCstage="Net"),
+    aes(x=scenario, y=0, label=scenario),
+    stat="identity",
+    color="gray20",
+    size=4,
+    fontface="italic",
+    hjust=-0.1
+  )+
+  facet_wrap(~impactLabel, ncol=2, scales="free")+
+  scale_color_manual(values="black")+
+  scale_fill_viridis(
+    begin=0.32, end=0.95, option="viridis", discrete = TRUE,
+    direction = -1
+  )+
+  coord_flip()+
+  guides(
+    color=guide_legend(nrow=1, title=NULL),
+    fill=guide_legend(nrow=1, title.position = "left")
+    )+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="top",
+    axis.text.x=element_text(angle=45, hjust=1),
+    axis.text.y=element_blank(),
+    strip.text = element_text(size=11, face="bold")
+    )
+tempImpactChart2
+
+```
+
+Because it's difficult to look at all these impacts at one time, it may pay to do a heatmap version of the impacts per scenario, where the impacts are all scaled to the baseline scenario.
+
+```{r}
+tempImpactData3 <-
+  tempImpactData1 %>% 
+  filter(scenario=="baseline") %>%
+  select(impactLabel, impact) %>%
+  rename(baselineImpact=impact)
+tempImpactData3a <-
+  left_join(
+    tempImpactData1,
+    tempImpactData3,
+    by= c("impactLabel")
+  ) %>%
+  mutate(
+    pctBaselineImpact=impact/baselineImpact
+  )
+```
+
+now make that into a chart
+
+```{r fig.width=6, fig.height=6}
+tempImpactChart3 <-
+  ggplot()+
+  ggtitle("Heatmap of scenario impacts (as % of baseline)")+
+  theme_539()+
+  geom_tile(
+    data=tempImpactData3a,
+    aes(y=scenario, x=impactLabel, fill=pctBaselineImpact),
+    color="white"
+  )+
+  geom_text(
+    data=tempImpactData3a,
+    aes(
+      y=scenario, x=impactLabel, label=percent(pctBaselineImpact,1)
+    ),
+    color="white"
+  )+
+  scale_fill_viridis(begin=0.32, end=0.9, option="viridis")+
+  theme(
+    plot.title = element_text(size=12),
+    rect=element_rect(fill="transparent"),
+    panel.grid = element_blank(),
+    axis.ticks = element_line(),
+    axis.text.x = element_text(hjust=1, angle=45)
+  )
+tempImpactChart3
+```
+
+All this may seem a little unbelievable.  It may help to delve into detail for individual materials in individual scenarios.  Let's compare weight and impacts side by side and do it as a giant collection.
+
+```{r}
+tempWeightData4 <-
+  impactsInDetail %>%
+  filter(LCstage == "endOfLife") %>% # correct set for weight calculations
+  group_by(wasteshed, scenario, material, umbDisp) %>% 
+  summarise(tons=sum(tons)) %>%
+  ungroup() %>%
+  filter(tons != 0) %>%
+  mutate(scenario= factor(scenario, levels=rev(scenarioOrder))) %>%
+  mutate(recovTons=ifelse(umbDisp=="recovery",tons,0)) %>%
+  mutate(material=factor(material, levels=materialSortOrder))
+
+# creating a data file that expresses weight-based
+# recovery rate for each scenario
+tempWeightData4a <-
+  tempWeightData4 %>%
+  group_by(wasteshed, scenario, material) %>%
+  summarise(
+    recovTons=sum(recovTons),
+    tons=sum(tons)
+  ) %>%
+  ungroup() %>%
+  mutate(recovRate=recovTons/tons)
+
+# total weight for the scenario
+tempWeightData4b <-
+  tempWeightData4a %>%
+  group_by(wasteshed, scenario) %>%
+  summarise(allTons=sum(tons)) %>%
+  ungroup()
+
+# combining that total
+tempWeightData4c <-
+  full_join(
+    tempWeightData4a,
+    tempWeightData4b,
+    by=c("wasteshed", "scenario")
+  ) %>%
+  mutate(pctTons=tons/allTons)
+
+# adding impact categories
+tempWeightData4d <-
+  left_join(
+    tempWeightData4c %>% mutate(dummy=1),
+    impactLabels %>% mutate(dummy=1),
+    by="dummy"
+  ) %>%
+  select(-dummy) %>%
+  filter(impactCategory != "Energy demand")
+```
+
+ok, now the impacts
+```{r}
+tempImpactData4 <-
+  impactsInDetail %>%
+  group_by(
+    wasteshed,
+    scenario, 
+    material,
+    LCstage, 
+    impactCategory, impactUnits
+  ) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup() %>%
+  mutate(
+    scenario = factor(scenario, levels = rev(scenarioOrder)),
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      ),
+    LCstage=
+      factor(
+        LCstage,
+        levels=c("production","endOfLife","endOfLifeTransport")
+      )
+  ) %>%
+  filter(impactCategory != "Energy demand") #removing to save space
+
+tempImpactData4a <-
+  tempImpactData4 %>%
+  group_by(
+    wasteshed, 
+    scenario, 
+    material, 
+    impactCategory, 
+    impactUnits, 
+    impactLabel
+  ) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup()
+
+tempImpactData4b <-
+  tempImpactData4a %>%
+  group_by(
+    wasteshed, scenario, impactCategory, impactUnits, impactLabel
+  ) %>%
+  summarise(allImpact=sum(impact)) %>%
+  ungroup()
+
+tempImpactData4c <-
+  full_join(
+    tempImpactData4a,
+    tempImpactData4b,
+    by=c(
+      "wasteshed", "scenario", "impactCategory",
+      "impactUnits", "impactLabel"
+    )
+  ) %>%
+  mutate(pctImpact=impact/allImpact)
+```
+
+now lining those percentages up into a long, skinny file
+
+```{r}
+weightImpactComparisonData1 <-
+  bind_rows(
+    tempWeightData4d %>%
+      select(scenario, wasteshed, material, pctTons, impactLabel) %>%
+      rename(pctTotal=pctTons) %>%
+      mutate(dataType="weight"),
+    tempImpactData4c %>%
+      select(scenario, wasteshed, material, pctImpact, impactLabel) %>%
+      rename(pctTotal=pctImpact) %>%
+      mutate(dataType="impact")
+  ) %>%
+  arrange(wasteshed, scenario, material, impactLabel)
+
+```
+
+That's way too much data to display, but I'll make a sample selection to compare percentages.
+
+```{r fig.height=10, fig.width=7.5}
+weightImpactComparisonData2 <-
+  filter(
+    weightImpactComparisonData1,
+    scenario=="baseline",
+    impactLabel=="Global warming (kg CO2 eq.)"
+  ) %>%
+  mutate(dataType=factor(dataType, levels=c("weight", "impact")))
+ggplot()+
+  ggtitle("Weight vs. GHG impacts for baseline scenario")+
+  geom_bar(
+    data=weightImpactComparisonData2,
+    aes(x=material, y=pctTotal, fill=dataType),
+    stat="identity",
+    color=NA
+  )+
+  scale_y_continuous(
+    name="Percent of total for wasteshed",
+    labels=percent
+  )+
+  scale_fill_viridis(begin = 0.32, end=0.8, 
+                      discrete=TRUE,
+                      option="plasma",
+                      direction=1)+
+  facet_grid(wasteshed~dataType)+
+  coord_flip()+
+  theme(
+    rect=element_rect(fill="transparent"),
+    axis.ticks=element_line(),
+    legend.position="top",
+    axis.title=element_text()
+  )
+```
