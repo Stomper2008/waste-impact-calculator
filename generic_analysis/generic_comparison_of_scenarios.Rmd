@@ -1,30 +1,37 @@
 ---
-title: "Sample waste stream analysis using the Waste Impact Calculator desktop"
+title: "Sample waste stream analysis using the Waste Impact Calculator framework"
 output:
   html_document:
     df_print: paged
 ---
 
-This RMarkdown file demonstrates how to use the "desktop" version of the Waste Impact Calculator to calculate and compare the life cycle impacts associated with solid waste management scenarios.  For example, you might want to compare the impacts associated with your current practice (the "baseline" scenario) with impacts for a scenario where you combust waste instead of landfill it, or a scenario where you recycle more.
+This RMarkdown file provides an example of using the Waste Impact Calculator framework to calculate and compare the life cycle environmental impacts associated with solid waste management scenarios.  
 
-This version of the Waste Impact Calculator requires you to know R programming.  If you don't know R, or just want some quick ballpark results, consider using the "app" version of the Waste Impact Calculator, available through your web browser.  
+For example, you might want to compare the impacts associated with your current practice (the "baseline" scenario) with impacts for a scenario where you combust waste instead of landfill it, or a scenario where you recycle more.
 
-However, if you do know R, doing it in an Rmarkdown file like this one will enable you to customize the output to your liking.  This file serve as your starting point, but the sky's the limit.  Obviously, you are responsible for the credibility of any results.
+This example involves R programming. If you don't know R, or just want some quick ballpark results, consider using the "app" version of the Waste Impact Calculator, available through your web browser.  
 
-See full documentation for the Waste Impact Calculator. (link)
+However, if you do know R, using  it in an Rmarkdown file like this one will enable you to customize the output to your liking.  This file serve as your starting point, but the sky's the limit.  Obviously, you are responsible for the credibility of any results.
 
-INPUTS 
+See full documentation for the Waste Impact Calculator HERE.
 
-The Waste Impact Calculator requires two specific, coordinated files as input, *mass_profiles* and *impact_factors*.  
+INPUTS AND BASIC OPERATION
 
-* mass_profiles describes the waste in terms of weight.  There should be one record for each combination of 
-* impact_factors combines 
+As you recall from the documentation (LINK), the Waste Impact Calculator creates results by merging two files, one about masses of waste materials, and the other about impact, multiplying weight * impact factor to get impacts.  Since these results are very detailed, the next step is typically summing the calculated impacts to a desired level of detail.
+
+STRUCTURE OF THE MASS PROFILE FILE.
+
+STRUCTURE OF THE IMPACT FACTOR FILE.
+
+CHARACTERISTICS OF THE JOIN OPERATION.
+
+SUMMING WEIGHTS AND IMPACTS
+
+Once the detailed impact file has been created, it is important to remember that weights and impacts are summed in different ways.
+
+* To summarise life cycle impacts for 
 
 
-(Maybe this text should be in the general documentation.  Don't write it now.  Why reinvent the wheel.)
-
-The example mass_profiles and impact_factors are just examples.
-you can find the real impact factors at THIS DIRECTORY
 
 
 DO STUFF NOW, DOCUMENTATION LATER! 
@@ -194,6 +201,7 @@ tempWeightChart1 <-
     legend.justification="left"
     )
 tempWeightChart1
+ggsave("chart_output/weights.png")
 ```
 
 Now for comparison, let's look at the impacts associated with those scenarios.  Because there are multiple impact categories, I'll do a faceted chart.
@@ -255,7 +263,7 @@ tempImpactChart1 <-
     strip.text = element_text(size=11, face="bold")
     )
 tempImpactChart1
-
+ggsave("chart_output/impacts.png")
 ```
 
 After seeing results like this, many people will want to know exactly why the results turned out that way.  That's where getting into the detail would be helpful.
@@ -323,6 +331,7 @@ tempWeightChart2 <-
     legend.justification="left"
     )
 tempWeightChart2
+ggsave("chart_output/weights2.png")
 ```
 
 Now for comparison, let's look at the impacts associated with those scenarios.  Because there are multiple impact categories, I'll do a faceted chart.
@@ -402,7 +411,7 @@ tempImpactChart2 <-
     strip.text = element_text(size=11, face="bold")
     )
 tempImpactChart2
-
+ggsave("chart_output/impacts2.png")
 ```
 
 Because it's difficult to look at all these impacts at one time, it may pay to do a heatmap version of the impacts per scenario, where the impacts are all scaled to the baseline scenario.
@@ -452,6 +461,7 @@ tempImpactChart3 <-
     axis.text.x = element_text(hjust=1, angle=45)
   )
 tempImpactChart3
+ggsave("chart_output/impacts3.png")
 ```
 
 All this may seem a little unbelievable.  It may help to delve into detail for individual materials in individual scenarios.  Let's compare weight and impacts side by side and do it as a giant collection.
@@ -623,4 +633,5 @@ ggplot()+
     legend.position="top",
     axis.title=element_text()
   )
+ggsave("chart_output/weight_impact_comparison.png")
 ```

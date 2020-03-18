@@ -968,27 +968,17 @@ ui <-
     
     # defining ui for the documentation page
     tabPanel(
-      title="Documentation",
+      title="About",
       sidebarLayout(
         sidebarPanel(
           width=3,
-          h3("DOCUMENTATION"),
+          h3("ABOUT"),
           "This section provides background about the provenance of 
           this model, and the impact factors it relies on."
         ),
         mainPanel(
           width = 9,
-          tabsetPanel(
-            tabPanel(
-              title = "Credits",
-              "insert some text here -- from a modular file?"
-            ),
-            tabPanel(
-              title = "Formal documentation",
-              "insert pdfs here for the Waste Impact Calculator and 
-              impact factor documents"
-            )
-          ) # close tabsetPanel for the documentation page
+          includeMarkdown(path="components/About.md")
         ) # close mainpanel for documentation page
       ) # close sidebar layout for documentation page
     ) # close tabPanel for documentation page
