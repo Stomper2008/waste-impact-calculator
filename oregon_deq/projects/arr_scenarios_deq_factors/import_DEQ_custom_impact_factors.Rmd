@@ -1,0 +1,571 @@
+---
+title: "Importing DEQ's custom impact factors"
+output: html_notebook
+---
+
+by Martin Brown
+Martin.Brown@state.or.us
++1.503.229.5502
+
+This R Markdown notebook documents my work to import DEQ's in-house impact factors for the Waste Impact Calculator (WIC) and adjust them somewhat to reflect some analytical decisions we have made.
+
+## Setting up the workspace
+
+Here i'm going to load in packages I use.
+```{r}
+# getting packages I might need
+library(tidyverse)
+library(readxl)
+library(openxlsx)
+library(scales)
+library(knitr)
+library(rmarkdown)
+```
+
+## Importing the spreadsheet factors
+
+WIC's impact factors are calculated in GABI by Peter Canepa and include many thousands of numbers.  GABI does not have a structured, labeled way of outputing these results, so Canepa generates an Excel file which I must import and re-label rather extensively.    
+
+```{r}
+# here is the input file name (just the name), which will be used
+# as an identifier for this set of impact factors 
+impactFactorSetId <- "emissionFactorsWICplusSOAR_20200313.xlsx"
+
+# here is the input file spec
+impactFactorsSourceFilespec <- 
+  paste(
+    "../../source_data/impact_factors/",
+    impactFactorSetId,
+    sep=""
+  )
+
+# getting the impact factors themselves, without column names
+# the "range" is important to get right
+impactFactorsRaw <- read_xlsx(
+   path=impactFactorsSourceFilespec, 
+   range="g10:ga102",
+   col_names = FALSE,
+   trim_ws = TRUE
+   )
+# getting the column names, removing weird tags from them, and 
+# doing some other fixes
+impactFactorsColumnNames <- as.character(
+   read_xlsx(
+      path=impactFactorsSourceFilespec,
+      range="g9:ga9",
+      col_names=FALSE,
+      col_types=c("text")
+      )
+   )
+# removing a weird character string (" <") from a few of the 
+# prospective column names
+impactFactorsColumnNames2 <-
+   str_sub(
+      impactFactorsColumnNames,
+      start=1,
+      end=ifelse(
+         str_locate(impactFactorsColumnNames," <")[,1] > 1,
+         str_locate(impactFactorsColumnNames," <")[,1] -1,
+         NA
+         )
+      )
+impactFactorsColumnNames <-
+   ifelse(
+      is.na(impactFactorsColumnNames2),
+      impactFactorsColumnNames,
+      impactFactorsColumnNames2
+      )
+rm(impactFactorsColumnNames2)
+
+# providing names to two columns which don't have them.
+# the first one is the "impact category", and the 
+# second one was something internal to Peter Canepa's
+# process
+impactFactorsColumnNames[1] <- "impactCategoryRaw" 
+impactFactorsColumnNames[2] <- "peterCcheckVariable" 
+
+# adding the column names to the impact factors
+if(
+   length(impactFactorsColumnNames)==ncol(impactFactorsRaw)
+   ) {
+   names(impactFactorsRaw) <- impactFactorsColumnNames
+   }
+# printing out what we've got so far
+# str(impactFactorsRaw)
+print(impactFactorsRaw)
+```
+
+This imported file is kind of a mess.  Some rows are irrelvant; there is too much information encoded in the column labels.  I need to do a bunch of steps to convert this into a "tidier" data set.
+
+```{r}
+# now let's get rid of some of the junk in that file
+# of impact factors.
+# getting rid of rows with all zero impacts
+impactFactorsRawFiltered <- filter(
+   impactFactorsRaw,
+   impactFactorsRaw[,2]!=0 & impactFactorsRaw[,3]!=0 & impactFactorsRaw[,4]!=0
+   )
+# str(impactFactorsRawFiltered)
+
+# now let's flip the columns so they are rows.
+# we want to create a "tidy" file -- where each
+# row is one observation.
+impactFactorsRawFlipped <- gather(
+   impactFactorsRawFiltered,
+   key="material_LCstage_disposition",
+   value="impactFactor",
+   -impactCategoryRaw
+   ) %>%
+   # filtering out peter C's private impact category
+   filter(material_LCstage_disposition!="peterCcheckVariable")
+
+# printing out what I've got
+# str(impactFactorsRawFlipped)
+```
+
+Good place for a break!
+
+```{r}
+# now I've got these really long fields that need to be parsed into 
+# separate fields.
+
+# impactCategoryRaw is actually a concatenation of impactCategory, 
+# impactUnits, and corporateSource (for example "TRACI, Global warming 
+# potential [MTCO2E]") actually means an impactCategory of 
+# "Global warming potential" in impactUnits of "MTCO2E" according to the 
+# "TRACI" Corporate Source.
+
+# parsing...
+impactFactorsRawFlippedParsed <- mutate(
+   impactFactorsRawFlipped,
+   corporateSource = str_sub(
+      impactCategoryRaw,
+      start=0,
+      end=str_locate(impactCategoryRaw,",")[,1]-1
+      ),
+   impactCategory = str_sub(
+      impactCategoryRaw,
+      start=str_locate(
+         impactCategoryRaw,
+         ", "
+         )[,2]+1,
+      end=str_locate(
+         impactCategoryRaw,
+         " \\["
+         )[,1]-1
+      ),
+   impactCategory=ifelse(
+      !is.na(impactCategory),
+      impactCategory,
+      str_sub(
+         impactCategoryRaw,
+         start=1,
+         end=str_locate(
+            impactCategoryRaw,
+            "\\["
+            )[,1]-2
+         )
+      ),
+   impactUnits= str_sub(
+      impactCategoryRaw,
+      start=str_locate(
+         impactCategoryRaw,
+         "\\["
+         )[,1]+1,
+      end=str_locate(
+         impactCategoryRaw,
+         "\\]"
+         )[,1]-1
+      )
+   ) %>% 
+  # unfortunately the "IPCC" corporate source didn't fit the
+  # pattern above.  fixing..
+  mutate(
+    missingPiece =
+      ifelse(
+        str_sub(corporateSource, start=1, end=8) == "IPCC AR5",
+        str_sub(corporateSource, start=10, end=length(corporateSource)),
+        ""
+      ),
+    corporateSource =
+      ifelse(
+        str_sub(corporateSource, start=1, end=8) == "IPCC AR5",
+        "IPCC AR5",
+        corporateSource
+      ),
+    impactCategory =
+      case_when(
+        corporateSource=="IPCC AR5" 
+          ~ paste(missingPiece, impactCategory, sep=" "),
+        TRUE ~ impactCategory
+      )
+  ) %>%
+  select(-missingPiece)
+# str(impactFactorsRawFlippedParsed)
+
+# now similarly field material_LCstage_disposition is a concatenation
+# of those fields
+# parsing...
+impactFactorsRawFlippedParsed2 <- mutate(
+   impactFactorsRawFlippedParsed,
+   material=str_sub(
+      material_LCstage_disposition,
+      start=1,
+      end=str_locate(material_LCstage_disposition,"_")[,1]-1
+      ),
+   theRestOfIt=str_sub(
+      material_LCstage_disposition,
+      start=str_locate(material_LCstage_disposition,"_")[,1]+1,
+      end=str_length(material_LCstage_disposition)
+      ),
+   LCstage=str_sub(
+      theRestOfIt,
+      start=1,
+      end=str_locate(theRestOfIt,"_")[,1]-1
+      ),
+   disposition=str_sub(
+      theRestOfIt,
+      start=str_locate(theRestOfIt,"_")[,1]+1,
+      end=str_length(theRestOfIt)
+      )
+   ) %>%
+   select(-theRestOfIt)
+
+str(impactFactorsRawFlippedParsed2)
+
+impactFactorsRawFlippedParsed3 <- mutate(
+   impactFactorsRawFlippedParsed2,
+   impactFactorSetId=impactFactorSetId
+   )
+
+# and let's get rid of columns I don't want
+impactFactorsAll <- select(
+   impactFactorsRawFlippedParsed3,
+   material,LCstage,disposition,impactCategory,impactUnits,impactFactor,
+     corporateSource,impactFactorSetId
+   )
+# str(impactFactorsAll)
+
+# correcting a typo in the material names
+impactFactorsAll <- mutate(
+  impactFactorsAll,
+  material = ifelse(material == "Woood", "Wood", material)
+  ) %>%
+  unique() 
+
+# impactFactorsAll is the tidy data frame with the usable factors.
+
+# removing unneeded objects
+rm(impactFactorsRaw,impactFactorsRawFiltered,
+   impactFactorsRawFlipped,impactFactorsRawFlippedParsed,
+   impactFactorsRawFlippedParsed2,impactFactorsRawFlippedParsed3,
+   impactFactorsColumnNames,impactFactorsSourceFilespec,
+   impactFactorSetId)
+
+# Because this is such a complicated import process, I am going to write 
+# a spreadsheet file to check against Peter Canepa's original.
+write.csv(
+   impactFactorsAll,
+   "intermediate_output/deq_impact_factors_exported_for_checking.csv",
+   row.names = FALSE
+   )
+```
+
+This is a good place to break and check that the factors currently recorded match the ones in Peter C's spreadsheet.
+
+After this point, they may not exactly match, because I am going to alter them some in ways that Canepa and I have agreed upon. 
+
+First, let's filter the categories down to a short list of 5-10 impact categories we actually want to report on, and shorten the impact factor names to something usable.
+
+```{r}
+# winnowing impact factors down to a shorter list
+impactFactorsSelected <-
+  filter(
+    impactFactorsAll,
+    impactCategory   == "Blue water consumption" |
+      impactCategory == "Eutrophication" |
+#      impactCategory == "Global Warming Air, incl biogenic carbon, incl LUC, no norm/weight" |
+      impactCategory == "Human toxicity, cancer (recommended)" |
+      impactCategory == "Primary energy demand from ren. and non ren. resources (net cal. value)" |
+#      impactCategory == "Smog Air" |
+      impactCategory == "Human Health Particulate Air" |
+      impactCategory == "GWP20 excl biogenic carbon" |
+      impactCategory == "GWP20 incl biogenic carbon" |
+      impactCategory == "Global Warming Air, excl. biogenic carbon" |
+      impactCategory == "Global Warming Air, incl. biogenic carbon"
+      )  %>%
+  # making shorter names
+  mutate(
+    impactCategory   = case_when(
+      impactCategory == "Blue water consumption" ~ "Water consumption",
+      impactCategory == "Eutrophication" ~ "Eutrophication",
+      impactCategory == "Human toxicity, cancer (recommended)" ~ "Human toxicity",
+      impactCategory == "Primary energy demand from ren. and non ren. resources (net cal. value)" ~ "Energy demand",
+      impactCategory == "Smog Air" ~ "Smog",
+      impactCategory == "Human Health Particulate Air" ~ "Air PM2.5",
+      impactCategory == "GWP20 excl biogenic carbon" ~ "Global warming 20",
+      impactCategory == "GWP20 incl biogenic carbon" ~ "Global warming 20(B)",
+      impactCategory == "Global Warming Air, excl. biogenic carbon"
+        ~ "Global warming 100",
+      impactCategory == "Global Warming Air, incl. biogenic carbon"
+        ~ "Global warming 100(B)"
+      )
+    ) 
+# the result should looks something like this:
+# > print(impactFactorsSelected)
+# # A tibble: 198 x 6
+#    material LCstage   disposition          impactCategory  impactUnits impactFactor
+#    <chr>    <chr>     <chr>                 <chr>           <chr>              <dbl>
+#  1 Aluminum endOfLife incinerationNoER      Energy demand   MJ               2.48e+3
+#  2 Aluminum endOfLife incinerationNoER      Global warming  kg CO2 eq.       1.49e+2
+#  3 Aluminum endOfLife incinerationNoER      Eutrophication  kg N eq.         3.06e-2
+#  4 Aluminum endOfLife incinerationNoER      Human toxicity  CTUh             1.51e-7
+
+```
+
+This is good, but it's a little complex for use in most applications of the Waste Impact Calculator.  This set of factors has transport factors separated out for both production and end of life.  We don't need separate production and production transport factors.  Moreover the names for the dispositions are really long.  Finally the LC stages need to be split a little bit, into production, EOL, and EOL transport.  
+
+To do all this I'm going to have to split the impact factor file up and reassemble it after tweaking appropriately.
+
+```{r}
+# isolating production impact factors
+ifProdJunk1 <- filter(
+  impactFactorsSelected,
+  LCstage == "production"
+  )
+# summing those up (combining production & production transport)
+ifProdJunk2 <- summarise(
+  group_by(ifProdJunk1, material, LCstage, impactCategory, impactUnits),
+  impactFactor=sum(impactFactor, na.rm=T)
+  ) %>%
+  ungroup() %>%
+  mutate(disposition="production")
+# so ifProdJunk2 has the production impact factors
+
+# isolating end-of-life impact factors
+ifEOLJunk1 <- filter(
+  impactFactorsSelected,
+  LCstage == "endOfLife"
+  )
+
+# cleaning up dispositions and LCstages
+# splitting the disposition field into first part (the EOL disposition)
+# and the second part (the EOL transport)
+ifEOLJunk2 <- mutate(
+  ifEOLJunk1,
+  hello=ifelse(
+    regexpr("_",disposition)>0,
+    regexpr("_",disposition),
+    nchar(disposition)+1
+    ),
+  disp1=str_sub(disposition, start=1, end=hello-1),
+  disp2=str_sub(disposition, start=hello+1, end=nchar(disposition))
+  ) %>%
+  # now I can make the EOL transport an LC stage
+  mutate(
+    LCstage=ifelse(
+      disp2 == "transport",
+      "endOfLifeTransport",
+      LCstage
+      )
+    )
+# now I can remove disp2, disposition and the temp variable hello
+# and rename disp2 as disposition
+ifEOLJunk3 <- select(
+  ifEOLJunk2,
+  -disp2, -disposition, -hello
+  ) %>%
+  rename(disposition = disp1)
+
+# now I can recombine the ifProdJunk2 & ifEOLJunk3
+ifJunk1 <- bind_rows(
+  ifProdJunk2,
+  ifEOLJunk3
+  )
+
+# now it should look something like this..
+# > sample_n(ifJunk1,5)
+# # A tibble: 5 x 6
+#   material  LCstage          impactCategory impactUnits impactFactor disposition    
+#   <chr>     <chr>            <chr>          <chr>              <dbl> <chr>          
+# 1 FoodWaste endOfLifeTransp~ Global warming kg CO2 eq.          23.0 incinerationNo~
+# 2 FoodWaste production       Smog           kg O3 eq.           85.9 production     
+# 3 Aluminum  endOfLife        Smog           kg O3 eq.         -115.  recyclingGener~
+# 4 Aluminum  endOfLife        Energy demand  MJ              -30251.  recyclingGener~
+# 5 Glass     endOfLifeTransp~ Eutrophication kg N eq.             0   reuse       
+
+```
+
+Currently this list is still pretty long.
+I'm going to cut some dispositions as unrealistic.
+I'm going to rename some dispositions for clarity.
+And I'm going to set the implied mileage of the end-of-life impact factors.
+
+```{r}
+# cutting some uncommon dispositions
+ifJunk2 <- mutate(
+  ifJunk1,
+  cutFlag = case_when(
+    disposition == "incinerationNoER" ~ TRUE,
+    disposition == "recyclingFiberglass" ~ TRUE,
+    disposition == "reuse" ~ TRUE,
+    disposition == "reuseContainer" ~ TRUE
+    )
+  ) %>%
+  filter(is.na(cutFlag)) %>%
+  select(-cutFlag) %>%
+  # renaming some awkward dispositions
+  mutate(
+    disposition = case_when(
+      disposition == "recyclingGeneric" ~ "recycling",
+      disposition == "recyclingAggregate" ~ "useAsAggregate",
+      disposition == "recyclingToAggregate" ~ "useAsAggregate",
+      disposition == "recyclingToContainer" ~ "recycling",
+      disposition == "incinerationER" ~ "combustion",
+      TRUE ~ disposition
+      )
+    ) %>%
+  # adding implied mileage for EOL transport impact factors
+  mutate(
+    impliedMiles = case_when(
+      LCstage == "endOfLifeTransport" & disposition == "landfilling" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "recycling" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "composting" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "useAsAggregate" ~ 20,
+      LCstage == "endOfLifeTransport" & disposition == "anaerobicDigestion" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "combustion" ~ 180,
+      TRUE ~ 180
+      )
+    ) %>%
+  # reordering the variables
+  select(material, LCstage, disposition, impactCategory,
+         impactUnits, impactFactor, impliedMiles)
+
+# saving that as the dedicated impact factor file
+impactFactorsIMFOapp <- ifJunk2
+
+# sorting it
+impactFactorsIMFOapp <- arrange(
+  impactFactorsIMFOapp, material, impactCategory, LCstage, disposition
+  )
+```
+
+If it all looks good, I can delete the temporary objects.
+```{r}
+# deleting work objects
+rm(ifEOLJunk1, ifEOLJunk2, ifEOLJunk3, ifJunk1, ifJunk2, ifProdJunk1,
+   ifProdJunk2, impactFactorsAll, impactFactorsSelected)
+```
+
+The object impactFactorsIMFOapp has most of the impact factors in a pretty clean, tidy state, but still needs a few more improvements.
+
+Substantially, the end-of-life transport factor needs to be modified.  Canepa has calculated it so it includes end-of-life transport from the pickup point (e.g. curbside) to final processing.  However, for the purpose of using WIC to decide on local solid waste management this is not really the way to frame the transport.  Local managers are only in control of the first parts of that process... from the pickup point to the local disposal facility or the first recycling marketplace.
+
+So I need to split up the end-of-life transport factor for each material into two parts... the part managers can control, and those they can't.  
+
+* Canepa says that the landfill distance is a good estimate of the controllable distance for each material.
+* Anything beyond the landfill distance is really a part of the impacts for that end-of-life PROCESS (e.g. recycling).  So that should be added to the impacts for that process.
+
+So I need to get the landfill impact for each material, line it up with the other dispositions for that material, and subtract and add appropriately.
+
+```{r}
+# getting landfill transport impacts
+tempLandfillImpact <-
+  impactFactorsIMFOapp %>% 
+  filter(disposition=="landfilling" & LCstage=="endOfLifeTransport") %>%
+  select(-disposition, -impliedMiles, -LCstage) %>%
+  rename(ifCorrection = impactFactor)
+
+# matching them with all available impacts
+tempImpactsToAlter <-
+  left_join(
+    impactFactorsIMFOapp,
+    tempLandfillImpact,
+    by = c("material", "impactCategory", "impactUnits")
+  )
+
+# alterations
+tempAlteredImpacts <-
+  tempImpactsToAlter %>%
+  mutate(
+    correctionToApply = as.numeric(NA),
+    correctionToApply =
+      case_when(
+        LCstage == "production" & disposition == "production" 
+          ~ 0,
+        LCstage == "endOfLifeTransport" & 
+          (disposition == "landfilling" | disposition == "combustion" |
+           disposition == "anaerobicDigestion" | disposition == "composting" |
+           disposition == "useAsAggregate")
+          ~ 0,
+        LCstage == "endOfLifeTransport" & 
+          (disposition != "landfilling" & disposition != "combustion" &
+           disposition != "anaerobicDigestion" & disposition != "composting" &
+           disposition != "useAsAggregate")
+          ~ -ifCorrection,
+        LCstage == "endOfLife" & 
+          (disposition == "landfilling" | disposition == "combustion" |
+           disposition == "anaerobicDigestion" | disposition == "composting" |
+           disposition == "useAsAggregate")
+          ~ 0,
+        LCstage == "endOfLife" & 
+          (disposition != "landfilling" & disposition != "combustion" &
+           disposition != "anaerobicDigestion" & disposition != "composting" 
+           & disposition != "useAsAggregate")
+          ~ ifCorrection
+      ),
+    impactFactor2 = impactFactor + correctionToApply
+  )
+# saving the altered file with a new name
+impactFactorsBetter <- 
+  tempAlteredImpacts %>%
+  rename(impactFactorOld = impactFactor) %>%
+  rename(impactFactor = impactFactor2) %>%
+  select(-ifCorrection, -correctionToApply, -impactFactorOld)
+```
+
+In addition, I find that the material "nonrecyclables" doesn't a production impact.  I'm just going to take it from the mean of the other materials.  This is probably something I should improve later, though, as it isn't weighted by any real waste stream.
+
+```{r}
+tempProductionImpacts <-
+  impactFactorsBetter %>%
+  filter(LCstage=="production") %>%
+  select(-impliedMiles) %>%
+  group_by(LCstage, disposition, impactCategory, impactUnits) %>%
+  summarize(productionMean = mean(impactFactor))
+impactFactorsBetter2 <-
+  left_join(
+    impactFactorsBetter,
+    tempProductionImpacts,
+    by = c("LCstage", "disposition", "impactCategory", "impactUnits")
+  ) %>%
+  mutate(
+    impactFactor =
+      ifelse(
+        material=="Nonrecyclables" & LCstage=="production",
+        productionMean,
+        impactFactor
+      )
+  ) %>%
+  select(-productionMean)
+```
+
+now let's make a better name, delete temporary objects, and save to disk files.
+
+```{r}
+# saving with better name
+impact_factors_deq <- impactFactorsBetter2
+# deleting temp objects
+rm(impactFactorsBetter, impactFactorsBetter2, impactFactorsIMFOapp,
+   tempAlteredImpacts, tempImpactsToAlter, tempLandfillImpact,
+   tempProductionImpacts)
+# saving to disk files
+saveRDS(
+  impact_factors_deq, "intermediate_output/impact_factors.RData"
+)
+write.csv(
+  impact_factors_deq,
+  "intermediate_output/impact_factors.csv",
+  row.names=FALSE
+)
+```

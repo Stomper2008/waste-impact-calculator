@@ -5,7 +5,7 @@ output:
     df_print: paged
 ---
 
-This RMarkdown file provides an example of using the Waste Impact Calculator framework to calculate and compare the life cycle environmental impacts associated with solid waste management scenarios.  
+This RMarkdown file provides an example of using the Waste Impact Calculator framework to calculate and compare the life cycle environmental impacts associated with solid waste management scenarios.
 
 For example, you might want to compare the impacts associated with your current practice (the "baseline" scenario) with impacts for a scenario where you combust waste instead of landfill it, or a scenario where you recycle more.
 
