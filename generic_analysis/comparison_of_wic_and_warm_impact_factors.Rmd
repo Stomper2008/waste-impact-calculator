@@ -1,0 +1,397 @@
+---
+title: Comparison of Oregon DEQ's impact factors for the Waste Impact Calculator with
+  similar factors from WARM version 15.
+output:
+  html_document:
+    df_print: paged
+---
+
+I need to compare these things.  Order of operations:
+
+* download WARM 15 (done)
+* import WARM 15 factors into an R data frame
+* make tidy
+* import WIC factors (easy)
+* create and apply crosswalk table
+* assure that units are compatible
+* combine sources
+* label impact factors with combinations of impactCategory-material-disposition-source
+* create plot and/or printout and/or shiny app to navigate results
+* maybe an analytical summary of results
+* write discussion of differences
+* add introduction 
+
+### Set up workspace
+
+```{r}
+# here are some packages that may be useful
+library(tidyverse)
+library(ggthemes)
+library(scales)
+library(knitr)
+library(rmarkdown)
+library(viridis)
+library(readxl)
+library(ggforce)
+```
+
+### Download WARM 15
+
+I did this and saved it as a local file.  The source link is [here](https://www.epa.gov/sites/production/files/2019-06/warm_v15.xls).
+
+### Import WARM 15 factors into an R data frame
+
+```{r}
+warmGHGimported <-
+  read_excel(
+    path = "../oregon_deq/source_data/impact_factors/warm_v15.xls", 
+    sheet = "Analysis Results (MTCO2E)", 
+    range = "e12:k71", 
+    col_names = c(
+      "warmMaterial",
+      "production",
+      "recycling",
+      "landfilling",
+      "combustion",
+      "composting",
+      "anaerobicDigestion"
+    ),
+    col_types = c("text", rep("numeric",6))
+  )
+
+warmEnergyImported <-
+  read_excel(
+    path = "../oregon_deq/source_data/impact_factors/warm_v15.xls", 
+    sheet = "Analysis Results (energy)", 
+    range = "e12:k71", 
+    col_names = c(
+      "warmMaterial",
+      "production",
+      "recycling",
+      "landfilling",
+      "combustion",
+      "composting",
+      "anaerobicDigestion"
+    ),
+    col_types = c("text", rep("numeric",6))
+  )
+  
+```
+
+### Make the WARM factors into a tidy dataframe
+
+That means each datum is identified by classification variables in each row... the "long skinny" format. So I need each impactFactor to be identified by..
+
+impactCategory
+impactUnits
+warmMaterial
+disposition
+
+```{r}
+# flipping the GHG file to make it skinnier
+warmGHGflipped <-
+  warmGHGimported %>%
+  pivot_longer(
+    cols = production:anaerobicDigestion,
+    names_to = "disposition",
+    values_to = "impactFactor"
+  ) %>%
+  # adding more identifying variables
+  mutate(
+    impactCategory = "Global warming",
+    impactUnits = "MTCO2E"
+  )
+# flipping the energy file to make it skinnier
+warmEnergyFlipped <-
+  warmEnergyImported %>%
+  pivot_longer(
+    cols = production:anaerobicDigestion,
+    names_to = "disposition",
+    values_to = "impactFactor"
+  ) %>%
+  # adding more identifying variables
+  mutate(
+    impactCategory = "Energy use",
+    impactUnits = "million BTU"
+  )
+# merging those two files
+warmFactors <-
+  bind_rows(warmEnergyFlipped, warmGHGflipped)
+```
+
+ok, the WARM factors are in the object warmFactors.  I can get rid of temporary objects.
+
+```{r}
+rm(list=setdiff(ls(),"warmFactors"))
+```
+
+### Import WIC factors
+
+```{r}
+# loading in the DEQ impact factors 
+impactFactorsDEQ <-
+  readRDS(
+    "../oregon_deq/projects/arr_scenarios_deq_factors/intermediate_output/impact_factors.RData"
+    )
+```
+
+### Create and apply crosswalk table
+
+Now I need to do something that's not exactly a "reproducible" task.  I need to create a table that matches the material (and disposition?) names in the DEQ and WARM data sets.
+
+Once I have this table, I won't need to rerun the code (and manual edits) that created it.
+
+Let's explore the two sets a bit.
+Are their disposition names the same?
+
+```{r}
+print(unique(impactFactorsDEQ$disposition))
+print(unique(warmFactors$disposition))
+```
+
+their disposition names look compatible.  So I don't need to fix those.  Whew!
+
+let's explore the material names... 
+
+... did that.  
+
+I have constructed a file that matches DEQ material names to WARM material names.  This may need to be altered as DEQ's own database expands.  I'll import it here.
+
+```{r}
+deqWARMxwalk <- 
+  read_excel(
+    "source_data/warm_oregon_deq_xwalk.xlsx",
+    range="a1:b20"
+  )
+```
+
+Now let's apply that crosswalk to the warmFactors, so that the warmFactors have deq material names.
+
+```{r}
+warmFactorsWithDEQnames <-
+  left_join(
+    warmFactors,
+    deqWARMxwalk,
+    by = "warmMaterial"
+  )
+```
+
+### Assure that the units are compatible
+
+Let's print out the categories and units in the DEQ file, and then the WARM file.
+
+```{r}
+distinct(impactFactorsDEQ, impactCategory, impactUnits)
+distinct(warmFactorsWithDEQnames, impactCategory, impactUnits)
+```
+
+Differences:
+
+* the DEQ file does GHG impacts as kg CO2 Eq. per short ton of material.
+* the WARM file does GHG impacts as metric tons CO2 per short ton of material
+* the DEQ file does energy as MJ
+* the WARM file does GHG impacts as million BTU
+
+So: I've got to
+
+* multiply WARM's GHG numbers by 1000 (because there are 1000 kg in a metric ton)
+* multiply WARM's energy numbers by 1055 (because there are  1,055.055853 MJ  in 1 million BTU).
+
+Here I'll make those corrections, and also flip the sign on WARM's "production" impacts... because they count them as "savings" ((???!))
+
+```{r}
+warmFactorsWithDEQnamesUnitsCompatible <-
+  warmFactorsWithDEQnames %>%
+  mutate(
+    impactFactor =
+      case_when(
+        impactCategory == "Energy use" ~ impactFactor*1055.0558,
+        impactCategory == "Global warming" ~ impactFactor*1000
+      ),
+    impactUnits =
+      case_when(
+        impactCategory == "Energy use" ~ "MJ",
+        impactCategory == "Global warming" ~ "kg CO2 eq."
+      )
+  ) %>%
+  mutate(
+    impactFactor =
+      ifelse(disposition=="production", -impactFactor, impactFactor)
+  )
+```
+
+I also need to add WARM names to the existing DEQ impact factors.
+
+```{r}
+impactFactorsDEQplusWARMnames <-
+  left_join(
+    impactFactorsDEQ,
+    deqWARMxwalk,
+    by="material"
+  )
+```
+
+
+### Combine the sources
+
+While I combine the DEQ and WARM files, I'm going to label the records with a source (DEQ or WARM) and also group the impact categories.
+
+```{r}
+impactSourcesToCompare <-
+  bind_rows(
+    impactFactorsDEQplusWARMnames %>%
+      mutate(
+        ifSource = "DEQ",
+        impactGroup =
+          case_when(
+            impactCategory == "Air PM2.5" ~ "Air",
+            impactCategory == "Energy demand" ~ "Energy",
+            impactCategory == "Eutrophication" ~ "Eutrophication",
+            impactCategory == "Global warming 100" |
+              impactCategory == "Global warming 100(B)" |
+              impactCategory == "Global warming 20" |
+              impactCategory == "Global warming 20(B)" ~ "GHG's",
+            impactCategory == "Human toxicity" ~ "Toxicity",
+            impactCategory == "Water consumption" ~ "Water"
+          )
+      ) %>%
+      filter(
+        LCstage != "endOfLifeTransport"
+      ) %>%
+      select(-LCstage, -impliedMiles),
+    warmFactorsWithDEQnamesUnitsCompatible %>%
+      mutate(
+        ifSource = "WARM",
+        impactGroup =
+          case_when(
+            impactCategory == "Global warming" ~ "GHG's",
+            impactCategory == "Energy use" ~ "Energy"
+          )
+      )
+  ) %>%
+  # filtering out extra records from the WARM file (materials
+  # not considered by Oregon DEQ)
+  filter(!is.na(material)) %>%
+  # sorting for convenience
+  arrange(
+    material,
+    disposition,
+    impactGroup,
+    ifSource,
+    impactCategory
+  )
+```
+
+Looks like it's done, so I can delete temp ohjects.
+
+```{r}
+rm(list=setdiff(ls(),"impactSourcesToCompare"))
+```
+
+### Create way to navigate the results.
+
+There's about 900 numbers in the current table.  How to make this comparable?
+
+I hesitate to say this, but an Excel pivot table might be really useful.  Everything's in rows, now I need columns.  So I'll write a spreadsheet.
+
+```{r}
+write.csv(
+  impactSourcesToCompare, 
+  "intermediate_output/impactSourcesToCompare.csv",
+  row.names = F
+)
+```
+
+A pivoted table might be good.
+
+```{r}
+myPivotedTable <-
+  impactSourcesToCompare %>%
+  arrange(impactGroup, ifSource, impactCategory, impactUnits) %>%
+  filter(!is.na(impactFactor)) %>%
+  pivot_wider(
+    names_from = 
+      c("impactGroup","ifSource","impactCategory","impactUnits"),
+    values_from = impactFactor
+  )
+# exporting that 
+write.csv(
+  myPivotedTable, 
+  "intermediate_output/factors_to_compare.csv",
+  row.names = F
+)
+```
+
+I might be able to do something with that -- maybe write it to a kableExtra table.  Or a DT table.  
+
+Let's try a faceted plot.
+
+```{r, fig.height=10, fig.width=7.5}
+impactSourcesToCompareSelection <-
+  impactSourcesToCompare %>%
+  filter(material == "Cardboard" | material == "FoodWaste") %>%
+  filter(!is.na(impactFactor))
+
+ggplot()+
+  theme_fivethirtyeight()+
+  ggtitle("title string")+
+  geom_bar(
+    data=impactSourcesToCompareSelection,
+    aes(x=impactCategory, y=impactFactor),
+    stat="identity"
+  )+
+  facet_wrap_paginate(
+    facets=vars(material,disposition, impactGroup, impactUnits),
+    nrow=3, ncol=1,
+    scales="free_y"    
+  )
+
+```
+
+That is going to be really awkward.
+I think it's time for an app.
+
+Writing the data frame to a file so the app can use it.
+
+```{r}
+saveRDS(
+  impactSourcesToCompare, 
+  "intermediate_output/impactSourcesToCompare.RData"
+)
+saveRDS(
+  impactSourcesToCompare, 
+  "impact-factor-browser/impactSourcesToCompare.RData"
+)
+# exporting that pivoted table -- might be good as a download
+saveRDS(
+  myPivotedTable,
+  "impact-factor-browser/myPivotedTable.RData"
+)
+write.csv(
+  myPivotedTable, 
+  "impact-factor-browser/factors_to_compare.csv",
+  row.names = F
+)
+
+```
+
+Before I make the app, I should create an example of the filtered data that creates the plot.
+
+```{r fig.width=6, fig.height=4}
+myPlotData <-
+  impactSourcesToCompare %>%
+  filter(
+    material == "Aluminum",
+    disposition == "production",
+    impactGroup == "GHG's"
+  ) 
+
+ggplot()+
+  theme_fivethirtyeight()+
+  geom_bar(
+    data=myPlotData,
+    aes(x=impactCategory, y=impactFactor,
+        fill=ifSource, color=ifSource),
+    stat="identity"
+  )
+```

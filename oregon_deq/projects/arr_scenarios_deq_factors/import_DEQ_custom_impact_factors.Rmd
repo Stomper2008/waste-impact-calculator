@@ -29,7 +29,8 @@ WIC's impact factors are calculated in GABI by Peter Canepa and include many tho
 ```{r}
 # here is the input file name (just the name), which will be used
 # as an identifier for this set of impact factors 
-impactFactorSetId <- "emissionFactorsWICplusSOAR_20200313.xlsx"
+# impactFactorSetId <- "emissionFactorsWICplusSOAR_20200313.xlsx"
+impactFactorSetId <- "emissionFactorsWICplusSOAR_20200327.xlsx"
 
 # here is the input file spec
 impactFactorsSourceFilespec <- 
@@ -43,7 +44,7 @@ impactFactorsSourceFilespec <-
 # the "range" is important to get right
 impactFactorsRaw <- read_xlsx(
    path=impactFactorsSourceFilespec, 
-   range="g10:ga102",
+   range="g10:gw102",
    col_names = FALSE,
    trim_ws = TRUE
    )
@@ -52,7 +53,7 @@ impactFactorsRaw <- read_xlsx(
 impactFactorsColumnNames <- as.character(
    read_xlsx(
       path=impactFactorsSourceFilespec,
-      range="g9:ga9",
+      range="g9:gw9",
       col_names=FALSE,
       col_types=c("text")
       )
@@ -101,11 +102,15 @@ This imported file is kind of a mess.  Some rows are irrelvant; there is too muc
 # now let's get rid of some of the junk in that file
 # of impact factors.
 # getting rid of rows with all zero impacts
-impactFactorsRawFiltered <- filter(
-   impactFactorsRaw,
-   impactFactorsRaw[,2]!=0 & impactFactorsRaw[,3]!=0 & impactFactorsRaw[,4]!=0
-   )
+impactFactorsRawFiltered <- 
+  impactFactorsRaw %>%
+  filter(
+    Aluminum_production_production != 0 &
+      Cardboard_production_production != 0 &
+      Carpeting_endOfLife_landfilling != 0
+  )
 # str(impactFactorsRawFiltered)
+
 
 # now let's flip the columns so they are rows.
 # we want to create a "tidy" file -- where each

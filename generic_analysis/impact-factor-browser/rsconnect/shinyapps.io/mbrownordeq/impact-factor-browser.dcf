@@ -1,0 +1,12 @@
+name: impact-factor-browser
+title: impact-factor-browser
+username:
+account: mbrownordeq
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2008354
+bundleId: 2941254
+url: https://mbrownordeq.shinyapps.io/impact-factor-browser/
+when: 1585521719.64887
+asMultiple: FALSE
+asStatic: FALSE

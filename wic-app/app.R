@@ -292,7 +292,7 @@ ui <-
                 h1(" "),
                 HTML(
                   '<iframe width="560" height="315" 
-                  src="https://www.youtube.com/embed/Xd8y73b6Wn8" 
+                  src="https://youtu.be/0Ou3oVzQpDM" 
                   frameborder="0" 
                   allow="accelerometer; autoplay; encrypted-media; 
                   gyroscope; picture-in-picture" allowfullscreen>
