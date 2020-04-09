@@ -30,7 +30,8 @@ WIC's impact factors are calculated in GABI by Peter Canepa and include many tho
 # here is the input file name (just the name), which will be used
 # as an identifier for this set of impact factors 
 # impactFactorSetId <- "emissionFactorsWICplusSOAR_20200313.xlsx"
-impactFactorSetId <- "emissionFactorsWICplusSOAR_20200327.xlsx"
+# impactFactorSetId <- "emissionFactorsWICplusSOAR_20200327.xlsx"
+impactFactorSetId <- "emissionFactorsWICplusSOAR_20200406.xlsx"
 
 # here is the input file spec
 impactFactorsSourceFilespec <- 
@@ -471,7 +472,12 @@ So I need to split up the end-of-life transport factor for each material into tw
 * Canepa says that the landfill distance is a good estimate of the controllable distance for each material.
 * Anything beyond the landfill distance is really a part of the impacts for that end-of-life PROCESS (e.g. recycling).  So that should be added to the impacts for that process.
 
-So I need to get the landfill impact for each material, line it up with the other dispositions for that material, and subtract and add appropriately.
+So, for every record in the impact factor database, I need to attach two things:
+
+* The landfilling transport impact factor for that material; and
+* The difference between the current impact factor and the landfilling transport impact factor
+
+Then I need to apply one of those two things as corrections, but only to certain life cycle stages and dispositions.
 
 ```{r}
 # getting landfill transport impacts
@@ -479,54 +485,69 @@ tempLandfillImpact <-
   impactFactorsIMFOapp %>% 
   filter(disposition=="landfilling" & LCstage=="endOfLifeTransport") %>%
   select(-disposition, -impliedMiles, -LCstage) %>%
-  rename(ifCorrection = impactFactor)
+  rename(landfillTransportFactor = impactFactor)
 
-# matching them with all available impacts
-tempImpactsToAlter <-
+# figuring the difference between the landfillTransportFactor
+# for each material and the other transport impacts
+tempTransportDifferences <-
   left_join(
     impactFactorsIMFOapp,
     tempLandfillImpact,
     by = c("material", "impactCategory", "impactUnits")
-  )
-
-# alterations
-tempAlteredImpacts <-
-  tempImpactsToAlter %>%
+  ) %>%
+  filter(LCstage=="endOfLifeTransport") %>%
+  select(-LCstage, -impliedMiles) %>%
   mutate(
-    correctionToApply = as.numeric(NA),
-    correctionToApply =
-      case_when(
-        LCstage == "production" & disposition == "production" 
-          ~ 0,
-        LCstage == "endOfLifeTransport" & 
-          (disposition == "landfilling" | disposition == "combustion" |
-           disposition == "anaerobicDigestion" | disposition == "composting" |
-           disposition == "useAsAggregate")
-          ~ 0,
-        LCstage == "endOfLifeTransport" & 
-          (disposition != "landfilling" & disposition != "combustion" &
-           disposition != "anaerobicDigestion" & disposition != "composting" &
-           disposition != "useAsAggregate")
-          ~ -ifCorrection,
-        LCstage == "endOfLife" & 
-          (disposition == "landfilling" | disposition == "combustion" |
-           disposition == "anaerobicDigestion" | disposition == "composting" |
-           disposition == "useAsAggregate")
-          ~ 0,
-        LCstage == "endOfLife" & 
-          (disposition != "landfilling" & disposition != "combustion" &
-           disposition != "anaerobicDigestion" & disposition != "composting" 
-           & disposition != "useAsAggregate")
-          ~ ifCorrection
-      ),
-    impactFactor2 = impactFactor + correctionToApply
-  )
-# saving the altered file with a new name
-impactFactorsBetter <- 
-  tempAlteredImpacts %>%
-  rename(impactFactorOld = impactFactor) %>%
-  rename(impactFactor = impactFactor2) %>%
-  select(-ifCorrection, -correctionToApply, -impactFactorOld)
+    transportDifference = impactFactor - landfillTransportFactor
+  ) %>%
+  select(-impactFactor)
+
+# attaching these two quantities to every row in the impact factor
+# file
+impactFactorsBetter <-
+  left_join(
+    impactFactorsIMFOapp,
+    tempTransportDifferences,
+    by = 
+      c("material", "disposition", "impactCategory", "impactUnits")
+  ) %>%
+  # correcting when necessary
+  mutate(
+    impactFactor2 = case_when(
+      # no correction for production impacts
+      LCstage == "production" ~ impactFactor,
+      # no correction for certain end-of-life impacts
+      (LCstage == "endOfLifeTransport" | LCstage == "endOfLife") & 
+         (disposition == "landfilling" | 
+         disposition == "combustion" |
+         disposition == "anaerobicDigestion" | 
+         disposition == "composting" |
+         disposition == "useAsAggregate") 
+          ~ impactFactor,
+      # recycling-related transport impacts set to landfill value
+        LCstage == "endOfLifeTransport" &
+        (disposition != "landfilling" & 
+         disposition != "combustion" &
+         disposition != "anaerobicDigestion" & 
+         disposition != "composting" &
+         disposition != "useAsAggregate") 
+          ~ landfillTransportFactor,
+      # recycling-related process impacts get an addition
+      # due to non-local transport
+        LCstage == "endOfLife" &
+        (disposition != "landfilling" & 
+         disposition != "combustion" &
+         disposition != "anaerobicDigestion" & 
+         disposition != "composting" &
+         disposition != "useAsAggregate") 
+          ~ impactFactor + transportDifference
+    )
+  ) %>%
+  # cleaning up the file
+  select(
+    -impactFactor, -landfillTransportFactor, -transportDifference
+  ) %>%
+  rename(impactFactor=impactFactor2)
 ```
 
 In addition, I find that the material "nonrecyclables" doesn't a production impact.  I'm just going to take it from the mean of the other materials.  This is probably something I should improve later, though, as it isn't weighted by any real waste stream.
@@ -562,7 +583,7 @@ now let's make a better name, delete temporary objects, and save to disk files.
 impact_factors_deq <- impactFactorsBetter2
 # deleting temp objects
 rm(impactFactorsBetter, impactFactorsBetter2, impactFactorsIMFOapp,
-   tempAlteredImpacts, tempImpactsToAlter, tempLandfillImpact,
+   tempTransportDifferences, tempLandfillImpact,
    tempProductionImpacts)
 # saving to disk files
 saveRDS(

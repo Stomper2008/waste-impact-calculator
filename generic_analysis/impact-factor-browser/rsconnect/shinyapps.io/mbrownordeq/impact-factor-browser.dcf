@@ -5,8 +5,8 @@ account: mbrownordeq
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2008354
-bundleId: 2941254
+bundleId: 2982160
 url: https://mbrownordeq.shinyapps.io/impact-factor-browser/
-when: 1585521719.64887
+when: 1586282356.54519
 asMultiple: FALSE
 asStatic: FALSE
